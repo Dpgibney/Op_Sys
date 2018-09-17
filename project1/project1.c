@@ -2,14 +2,44 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <sys/types.h>
 char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
+char * addPath(char * instr, char ** path);
  
 int main() {
         char token[256];		/* holds instruction token*/
         char ** bucket;			/* array that holds all instruction tokens*/
         char temp[256];			/* used to split instruction tokens containing special characters*/
         int pid;
+   
+
+        //TODO make this a function so its less ugly
+        char* path;
+        path = getenv("PATH");
+        printf("%s\n",path);
+        int i = 0;
+        //number of different path directories to check
+        int paths = 0;
+        char ** pathtokens = malloc(50*sizeof(char *));
+        pathtokens[paths] = path;
+        while(path[i]!='\0'){
+              printf("%c\n",path[i]);
+              if(path[i]==':'){
+                 path[i]='\0';
+                 paths++;
+                 pathtokens[paths] = &path[i+1];
+              }
+              i++;
+        }
+        printf("%d\n",paths);
+        for(i = 0; i < paths; i++){
+            printf("%s\n",pathtokens[i]);
+        }
+        //add a null so that my add path function knows where to end
+        pathtokens[paths+1] = NULL;
+
 
         while (1) {
                 printf("Please enter an instruction:");
@@ -59,27 +89,6 @@ int main() {
 
                 printTokens(bucket, numI);
 
-                char* path;
-                path = getenv("PATH");
-                printf("%s\n",path);
-                int i = 0;
-                //number of different path directories to check
-                int paths = 0;
-                char ** pathtokens = malloc(50*sizeof(char *));
-                pathtokens[paths] = path;
-                while(path[i]!='\0'){
-                      printf("%c\n",path[i]);
-                      if(path[i]==':'){
-                         path[i]='\0';
-                         paths++;
-                         pathtokens[paths] = &path[i+1];
-                      }
-                      i++;
-                }
-                printf("%d\n",paths);
-                for(i = 0; i < paths-1; i++){
-                    printf("%s\n",pathtokens[i]);
-                }
 
 
                 if ((pid = fork()) == 0)
@@ -100,8 +109,12 @@ int main() {
                         dup2(fdout, 2); // force stderr to tty
                         close(tty);
                         //last argument must be NULL for execvp()
-                        av[ac] = NULL;
-			execute program av[0] with arguments av[0]... replacing this program*/
+                        av[ac] = NULL; */
+               
+                        //add absolute path for execution
+                        bucket[0] = addPath(bucket[0],pathtokens);
+                        printf("%s\n",bucket[0]);                        
+			//execute program av[0] with arguments av[0]... replacing this program
                         execv(bucket[0],(char *[]){bucket[0],NULL });
                         if(pid==0){
                             printf("whoops\n");
@@ -148,4 +161,30 @@ void printTokens(char** instr, int numTokens)
         printf("Tokens:\n");
         for (i = 0; i < numTokens; i++)
                 printf("#%s#\n", instr[i]);
+}
+
+char * addPath(char * instr, char ** path){
+       int i = 0;
+       struct dirent *dp;
+       DIR *d;
+       while(path[i] != NULL){
+            //printf("%s\n",path[i+1]);
+            d = opendir(path[i]);
+            if(d){
+                while((dp = readdir(d))!= NULL){
+                    //printf("%s\n", dp->d_name);
+                    if(strcmp(instr,dp->d_name)==0){
+                       char * new_path = (char *)malloc(200*sizeof(char));
+                       strcpy(new_path,path[i]);
+                       strcat(new_path,"/");
+                       strcat(new_path,dp->d_name);
+                       return new_path;
+                    }
+                }
+            }
+            i++;
+            closedir(d);
+       }
+       return; 
+
 }
