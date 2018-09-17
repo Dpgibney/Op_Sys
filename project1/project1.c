@@ -42,7 +42,8 @@ int main() {
 
 
         while (1) {
-                printf("Please enter an instruction:");
+                char * tmp = (char *)malloc(100*sizeof(char));
+                printf("%s@%s::%s",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name());
 
                 int numI = 0;                /* number of tokens in an instruction*/
 
