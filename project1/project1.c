@@ -59,6 +59,30 @@ int main() {
                 } while ('\n' != getchar());    //until end of line is reached
 
                 printTokens(bucket, numI);
+
+                char* path;
+                path = getenv("PATH");
+                printf("%s\n",path);
+                int i = 0;
+                //number of different path directories to check
+                int paths = 0;
+                char ** pathtokens = malloc(50*sizeof(char *));
+                pathtokens[paths] = path;
+                while(path[i]!='\0'){
+                      printf("%c\n",path[i]);
+                      if(path[i]==':'){
+                         path[i]='\0';
+                         paths++;
+                         pathtokens[paths] = &path[i+1];
+                      }
+                      i++;
+                }
+                printf("%d\n",paths);
+                for(i = 0; i < paths-1; i++){
+                    printf("%s\n",pathtokens[i]);
+                }
+
+
                 if ((pid = fork()) == 0)
                 {
                         // this is the forked child process that is a copy of the running program
