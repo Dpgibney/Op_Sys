@@ -115,7 +115,7 @@ int main() {
                         bucket[0] = addPath(bucket[0],pathtokens);
                         printf("%s\n",bucket[0]);                        
 			//execute program av[0] with arguments av[0]... replacing this program
-                        execv(bucket[0],(char *[]){bucket[0],NULL });
+                        execv(bucket[0],bucket);
                         if(pid==0){
                             printf("whoops\n");
                         }
