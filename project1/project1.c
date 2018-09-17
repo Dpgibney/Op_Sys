@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
@@ -13,6 +14,8 @@ int main() {
         char ** bucket;			/* array that holds all instruction tokens*/
         char temp[256];			/* used to split instruction tokens containing special characters*/
         int pid;
+        int w;
+        int status;
    
 
         //TODO make this a function so its less ugly
@@ -88,7 +91,7 @@ int main() {
 
                 } while ('\n' != getchar());    /*until end of line is reached*/
 
-                printTokens(bucket, numI);
+                //printTokens(bucket, numI);
 
 
 
@@ -114,7 +117,7 @@ int main() {
                
                         //add absolute path for execution
                         bucket[0] = addPath(bucket[0],pathtokens);
-                        printf("%s\n",bucket[0]);                        
+                        //printf("%s\n",bucket[0]);                        
 			//execute program av[0] with arguments av[0]... replacing this program
                         execv(bucket[0],bucket);
                         if(pid==0){
@@ -122,7 +125,14 @@ int main() {
                         }
                         /*fprintf(stderr, "can't execute %s\n", av[0]);*/
                         exit(EXIT_FAILURE);
-                        } 
+                        }
+                         while ((w = wait(&status)) != pid && w != -1){
+                             continue;          
+                        }         
+                        //if(pid != 0){
+                        //    int childstatus;
+                        //    waitpid(pid,&childstatus,WNOHANG);
+                        //} 
 
         }  /*until "exit" is read in*/
         free(bucket);	/*free dynamic memory*/
