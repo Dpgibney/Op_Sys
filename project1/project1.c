@@ -9,6 +9,7 @@
 char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
+char** parsePath(char * path);
  
 int main() {
         char token[256];		/* holds instruction token*/
@@ -22,35 +23,12 @@ int main() {
 	
 	gettimeofday(&start, NULL);
 
-        //TODO make this a function so its less ugly
         char* path;
-        path = getenv("PATH");
-        printf("%s\n",path);
-        int i = 0;
-        //number of different path directories to check
-        int paths = 0;
-        char ** pathtokens = malloc(50*sizeof(char *));
-        pathtokens[paths] = path;
-        while(path[i]!='\0'){
-              printf("%c\n",path[i]);
-              if(path[i]==':'){
-                 path[i]='\0';
-                 paths++;
-                 pathtokens[paths] = &path[i+1];
-              }
-              i++;
-        }
-        printf("%d\n",paths);
-        for(i = 0; i < paths; i++){
-            printf("%s\n",pathtokens[i]);
-        }
-        //add a null so that my add path function knows where to end
-        pathtokens[paths+1] = NULL;
-
+        char ** pathtokens = parsePath(path);
 
         while (1) {
                 char * tmp = (char *)malloc(100*sizeof(char));
-                printf("%s@%s::%s",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name());
+                printf("%s@%s::%s%s",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name(),"-> ");
 
                 int numI = 0;                /* number of tokens in an instruction*/
 
@@ -144,7 +122,6 @@ int main() {
                         //last argument must be NULL for execvp()
                         av[ac] = NULL; */
                
-                        //add absolute path for execution
                         bucket[0] = addPath(bucket[0],pathtokens);
                         //printf("%s\n",bucket[0]);                        
 			//execute program av[0] with arguments av[0]... replacing this program
@@ -208,6 +185,20 @@ char * addPath(char * instr, char ** path){
        int i = 0;
        struct dirent *dp;
        DIR *d;
+       //TODO if the absolute path is given to run a program use that instead
+       if(instr[0]=='/'){
+           printf("absolute\n");
+       }else{
+           while(instr[i]!='\0'){
+               printf("relative\n");
+               if(instr[i]=='/'){
+                   printf("relative or absolute\n");
+               }
+               i++;
+
+           }
+       }
+       //add absolute path for execution
        while(path[i] != NULL){
             //printf("%s\n",path[i+1]);
             d = opendir(path[i]);
@@ -226,6 +217,35 @@ char * addPath(char * instr, char ** path){
             i++;
             closedir(d);
        }
+       printf("%s: Command not found.\n",instr);
        return; 
 
+}
+ 
+char** parsePath(char* path){
+        path = getenv("PATH");
+        //prints path for testing
+        //        //printf("%s\n",path);
+        int i = 0;
+        //number of different path directories to check
+        int paths = 0;
+        char ** pathtokens = malloc(100*sizeof(char *));
+        pathtokens[paths] = path;
+        while(path[i]!='\0'){
+             //printf("%c\n",path[i]);
+             if(path[i]==':'){
+                  path[i]='\0';
+                  paths++;
+                  pathtokens[paths] = &path[i+1];
+                  }
+                  i++;
+             }
+        //prints output for testing
+        //printf("%d\n",paths);
+        //for(i = 0; i < paths; i++){
+        //    printf("%s\n",pathtokens[i]);
+        //}
+        //add a null so that my add path function knows where to end
+        pathtokens[paths+1] = NULL;
+        return pathtokens;
 }
