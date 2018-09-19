@@ -18,7 +18,6 @@ int main() {
         int w;
         int status;
    	struct timeval start, finish;
-	double time;
 	
 	gettimeofday(&start, NULL);
 
@@ -99,11 +98,17 @@ int main() {
 		if(strcmp(bucket[0], "echo") == 0){
 			if(bucket[1] != NULL){
 				char tempChar[1];
+				char *tempS = bucket[1];
+				char * ePath;
 				memcpy(tempChar, bucket[1],1);
-				if(temp[0] ==  '$'){
-					//lookup the argument in the list of enviornment variables
-					//print if exists
-					//signal an error if not
+				if(tempChar[0] ==  '$'){
+					strcpy(tempS,tempS+1);
+					if(ePath = getenv(tempS)){
+						printf("%s\n",ePath);
+					}
+					else{
+						printf("The path entered is not an envionmental variable\n");
+					}
 				}
 				else{
 					printf(bucket[1]);
@@ -111,7 +116,7 @@ int main() {
 				}
 			}
 			else{
-				//print error message
+				printf("Nothing to check if it is an enviornmental variable\n");
 			}
 		}
 		else if(strcmp(bucket[0], "exit")==0){
