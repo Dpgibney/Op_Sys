@@ -5,6 +5,7 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
@@ -16,7 +17,10 @@ int main() {
         int pid;
         int w;
         int status;
-   
+   	struct timeval start, finish;
+	double time;
+	
+	gettimeofday(&start, NULL);
 
         //TODO make this a function so its less ugly
         char* path;
@@ -92,10 +96,35 @@ int main() {
                 } while ('\n' != getchar());    /*until end of line is reached*/
 
                 //printTokens(bucket, numI);
+		if(strcmp(bucket[0], "echo") == 0){
+			if(bucket[1] != NULL){
+				char tempChar[1];
+				memcpy(tempChar, bucket[1],1);
+				if(temp[0] ==  '$'){
+					//lookup the argument in the list of enviornment variables
+					//print if exists
+					//signal an error if not
+				}
+				else{
+					printf(bucket[1]);
+					printf("\n");
+				}
+			}
+			else{
+				//print error message
+			}
+		}
+		else if(strcmp(bucket[0], "exit")==0){
+			break;
+		}
+		else if(strcmp(bucket[0], "cd")==0){
+			printf("cd jsda");
+		}
+		else if(strcmp(bucket[0], "io")==0){
+			printf("io comada");
+		}
 
-
-
-                if ((pid = fork()) == 0)
+                else if ((pid = fork()) == 0)
                 {
                         /* this is the forked child process that is a copy of the running program*/
                         /*if(newin == false){
@@ -137,7 +166,8 @@ int main() {
         }  /*until "exit" is read in*/
         free(bucket);	/*free dynamic memory*/
         printf("Exiting...\n");
-
+	gettimeofday(&finish, NULL);
+	printf("\tSession time: %ds\n",(finish.tv_sec-start.tv_sec));
         return 0;
 }
 
