@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <stdbool.h>
 char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
@@ -126,9 +127,6 @@ int main() {
                         //printf("%s\n",bucket[0]);                        
 			//execute program av[0] with arguments av[0]... replacing this program
                         execv(bucket[0],bucket);
-                        if(pid==0){
-                            printf("whoops\n");
-                        }
                         /*fprintf(stderr, "can't execute %s\n", av[0]);*/
                         exit(EXIT_FAILURE);
                         }
@@ -183,12 +181,44 @@ void printTokens(char** instr, int numTokens)
 
 char * addPath(char * instr, char ** path){
        int i = 0;
+       int tmp = 0;
        struct dirent *dp;
        DIR *d;
-       //TODO if the absolute path is given to run a program use that instead
-       if(instr[0]=='/'){
-           printf("absolute\n");
-       }else{
+       char * tmp_command;
+       char * tmp_instr = (char*)malloc(100*sizeof(char));
+       bool containsslash = false;
+        while(instr[i]!='\0'){
+               if(instr[i] == '/'){
+                   containsslash = true;
+               }
+               i++;
+           } 
+       i = 0; 
+       if(instr[0]=='/' || containsslash){
+           while(instr[i]!='\0'){
+               if(instr[i] == '/'){
+                  tmp = i;
+               }
+               i++;
+           }
+           i = 0;
+           strcpy(tmp_instr,instr);
+           tmp_command = &instr[tmp+1];
+           tmp_instr[tmp] = '\0';
+           d = opendir(tmp_instr);
+           if(d == NULL || strcmp(tmp_command,"")==0){
+               printf("%s: Command not found.\n",instr);
+               return NULL;
+           }else{
+		   while((dp = readdir(d))!= NULL){
+			   if(strcmp(tmp_command,dp->d_name)==0){
+				   return instr;
+			   }
+		   }
+           }
+               printf("%s: Command not found.\n",instr);
+               return NULL;
+       }else if(containsslash){
            while(instr[i]!='\0'){
                printf("relative\n");
                if(instr[i]=='/'){
@@ -197,6 +227,7 @@ char * addPath(char * instr, char ** path){
                i++;
 
            }
+           i = 0;
        }
        //add absolute path for execution
        while(path[i] != NULL){
