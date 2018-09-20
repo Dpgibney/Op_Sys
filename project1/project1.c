@@ -34,7 +34,6 @@ int main() {
 
                 do {                            /* loop reads character sequences separated by whitespace*/
                         scanf( "%s", token);
-
                         int i;
                         int start;
                         start = 0;
@@ -105,7 +104,35 @@ int main() {
 			printf("cd jsda");
 		}
 		else if(strcmp(bucket[0], "io")==0){
-			printf("io comada");
+			FILE *fp;
+                        
+                        char file_name[50];
+
+                        if ((pid = fork()) == 0){
+                        bucket[1] = addPath(bucket[1],pathtokens);
+                        char ** new_bucket = &bucket[1];
+                        //printf("%s\n",bucket[0]);                        
+			//execute program av[0] with arguments av[0]... replacing this program
+                        printTokens(new_bucket, numI-1);
+                        execv(new_bucket[0],new_bucket);
+                        //execv(bucket[1],&bucket[1]);
+                        printf("io comada");
+                        /*fprintf(stderr, "can't execute %s\n", av[0]);*/
+                        exit(EXIT_FAILURE);
+                        }
+                        sprintf(file_name,"/proc/%d/io",pid);
+                        printf("%s\n",file_name);
+                        
+                        fp = fopen(file_name,"r");
+                        if(fp!=NULL){
+                        printf("%s\n",fp);
+                        }
+                        
+                         while ((w = wait(&status)) != pid && w != -1){
+                             continue;          
+                        }         
+                        //if(pid != 0){
+                        printf("io comada");
 		}
 
                 else if ((pid = fork()) == 0)
@@ -129,6 +156,7 @@ int main() {
                         av[ac] = NULL; */
                
                         bucket[0] = addPath(bucket[0],pathtokens);
+                        printTokens(bucket, numI);
                         //printf("%s\n",bucket[0]);                        
 			//execute program av[0] with arguments av[0]... replacing this program
                         execv(bucket[0],bucket);
@@ -158,7 +186,7 @@ char** addToken(char** instr, char* tok, int numTokens)
         int i;
         
         char** new_arr;
-        new_arr = (char**)malloc((numTokens+1) * sizeof(char*));				
+        new_arr = (char**)malloc((numTokens+2) * sizeof(char*));				
         /*copy values into new array*/
         for (i = 0; i < numTokens; i++)
         {
@@ -172,7 +200,7 @@ char** addToken(char** instr, char* tok, int numTokens)
         
         if (numTokens > 0)
         free(instr);
-
+        new_arr[numTokens+1] == NULL;
         return new_arr;
 }
 
@@ -180,8 +208,9 @@ void printTokens(char** instr, int numTokens)
 {
         int i;
         printf("Tokens:\n");
-        for (i = 0; i < numTokens; i++)
+        for (i = 0; i < numTokens; i++){
                 printf("#%s#\n", instr[i]);
+        }
 }
 
 char * addPath(char * instr, char ** path){
