@@ -1,0 +1,27 @@
+Member 1: Danny Gibney
+Member 2: David Song
+Member 3: Alexandra Sayers
+
+project1.tar contents:
+README
+Makefile
+project1.c
+
+Completed using: linprog
+
+To build:
+$> make
+
+To clean:
+$> make clean
+
+To run test suite:
+$> make test
+
+Known bugs:
+
+To do:
+
+Additional comments:
+
+
