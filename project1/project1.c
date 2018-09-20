@@ -102,7 +102,19 @@ int main() {
 			break;
 		}
 		else if(strcmp(bucket[0], "cd")==0){
-			printf("cd jsda");
+			if(bucket[1] != NULL){
+				if(bucket[2] == NULL){
+					if(chdir(bucket[1])!= -1){
+						chdir(bucket[1]);
+					}
+					else{
+						printf("Error target is not a directory\n");
+					}
+				}
+				else{
+					printf("Error more than one argument present\n");
+				}
+			}
 		}
 		else if(strcmp(bucket[0], "io")==0){
 			printf("io comada");
