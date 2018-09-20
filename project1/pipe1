@@ -1,0 +1,72 @@
+int invoke_pipe(char **args1, char **args2) {
+    pid_t pid1, pid2;
+    int status1, status2;
+    int fd[2];      // file descriptor
+
+    // pipe the fd
+    if (pipe(fd) == -1) {
+        fprintf(stderr, "pipe error\n");
+        return EXIT_FAILURE;
+    }
+
+    // check if args1 is builtin
+    for (int i = 0; i < num_builtins(); i++) {
+        if (strcmp(args1[0], builtin_cmd[i]) == 0) {
+            // this is a built in command
+            pid1 = Fork();
+
+            if (pid1 == 0) {
+                // child process, which is the exec'd program that will get input
+                // from the built in command
+
+                // close the WRITE interface of the fd
+                close(fd[WRITE]);
+                dup2(fd[READ], STDIN_FILENO);
+
+                if (execvp(args2[0], args2) < 0) {
+                    fprintf(stderr, "shell: command not found: %s\n", strerror(errno));
+                    exit(EXIT_FAILURE);
+                }
+            } else {
+                // parent process, which sends the input to the exec'd program
+
+                // close READ interface of the fd
+                close(fd[READ]);
+                dup2(fd[WRITE], STDOUT_FILENO);
+
+                (*builtin_func[i])(args1);
+                waitpid(pid1, &status1, WUNTRACED);
+
+                return 1;
+            }
+        }
+    }
+
+    // if args1 is not built in
+    pid1 = Fork();
+    if (pid1 == 0) {
+        // child 1
+        // send input to pipe
+        close(fd[READ]);
+        dup2(fd[WRITE], STDOUT_FILENO);
+        return proc_launch(args1);
+    } else {
+        // parent branch
+        pid2 = Fork();
+        if (pid2 == 0) {
+            // child 2
+            close(fd[WRITE]);
+            dup2(fd[READ], STDIN_FILENO);
+            return proc_launch(args2);
+        } else {
+            // parent branch
+            close(fd[WRITE]);
+            close(fd[READ]);
+
+            waitpid(pid1, &status1, WUNTRACED);
+            waitpid(pid2, &status2, WUNTRACED);
+
+            return 1;
+        }
+    }
+}
