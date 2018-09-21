@@ -12,7 +12,7 @@ if((pid = fork())==-1){
      // command is outputting to file (CMD > FILE)
         fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0755);
         if ((fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0755)) == -1) {
-            fprintf(stderr, "shell3: error creating file: %s\n", strerror(errno));
+            fprintf(stderr, "shell1: error creating file: %s\n", strerror(errno));
             return EXIT_FAILURE;
         }
         dup2(fd, STDOUT_FILENO);
@@ -25,7 +25,7 @@ if((pid = fork())==-1){
         // file is inputting to command (CMD < FILE)
         fd = open(filename, O_RDWR, 0755);
         if ((fd = open(filename, O_RDWR, 0755)) == -1) {
-            fprintf(stderr, "shell1: no such file or directory: %s\n", strerror(errno));
+            fprintf(stderr, "shell2: no such file or directory: %s\n", strerror(errno));
             return EXIT_FAILURE;
         }
         dup2(fd, STDIN_FILENO);
