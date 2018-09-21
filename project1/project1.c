@@ -34,6 +34,7 @@ int main() {
                 int numI = 0;                /* number of tokens in an instruction*/
 
                 do {                            /* loop reads character sequences separated by whitespace*/
+                        //printf("path: %s %s %s \n",pathtokens[0],pathtokens[1],pathtokens[2]);
                         scanf( "%s", token);
                         int i;
                         int start;
@@ -75,7 +76,6 @@ int main() {
                 
                 bucket[numI] = NULL;
               
-                printf("bucket address %d\n",bucket);
 		if(strcmp(bucket[0], "echo") == 0){
 			if(bucket[1] != NULL){
 				char tempChar[1];
@@ -125,31 +125,73 @@ int main() {
 
                         if ((pid = fork()) == 0){
                         bucket[1] = addPath(bucket[1],pathtokens);
-                        char ** new_bucket = &bucket[1];
                         //printf("%s\n",bucket[0]);                        
 			//execute program av[0] with arguments av[0]... replacing this program
-                        printTokens(new_bucket, numI-1);
-                        execv(new_bucket[0],new_bucket);
+                        //printTokens(new_bucket, numI-1);
+                        execv(bucket[1],&bucket[1]);
                         //execv(bucket[1],&bucket[1]);
                         /*fprintf(stderr, "can't execute %s\n", av[0]);*/
                         exit(EXIT_FAILURE);
                         }
-                        sprintf(file_name,"/proc/%d/io",pid);
-                        char ch;
-                        fp = fopen(file_name,"r");
-                        while((ch = fgetc(fp)) != EOF){
-                            printf("%c",ch);
-                        }
+                        //sprintf(file_name,"/proc/%d/io",pid);
+                        //char ch;
+                        //fp = fopen(file_name,"r");
+                        //while((ch = fgetc(fp)) != EOF){
+                        //    printf("%c",ch);
+                        //}
                         //if(fp!=NULL){
                         //printf("%s\n",fp);
                         //}
-                        
-                        while ((w = wait(&status)) != pid && w != -1){
-                             continue;          
-                        }         
-                        while((ch = fgetc(fp)) != EOF){
-                            printf("%c",ch);
+                        //wait(&pid);
+                        int tmp = getpgid(pid);
+                        int rchar = 0;
+                        int wchar = 0;
+                        int syscr = 0;
+                        int syscw = 0;
+                        int read_bytes = 0;
+                        int write_bytes = 0;
+                        int cancelled = 0;
+                        while(true){
+                        char line[100];
+                        if(waitpid(pid, &status, WNOHANG) == 0){
+                        sprintf(file_name,"/proc/%d/io",pid);
+                        char ch;
+                        fp = fopen(file_name,"r");
+                        if(fp!=NULL){
+                        fgets(line,sizeof(line),fp);
+                        sscanf(line,"%*s %d",&rchar);
+                        fgets(line,sizeof(line),fp);
+                        sscanf(line,"%*s %d",&wchar);
+                        fgets(line,sizeof(line),fp);
+                        sscanf(line,"%*s %d",&syscr);
+                        fgets(line,sizeof(line),fp);
+                        sscanf(line,"%*s %d",&syscw);
+                        fgets(line,sizeof(line),fp);
+                        sscanf(line,"%*s %d",&read_bytes);
+                        fgets(line,sizeof(line),fp);
+                        sscanf(line,"%*s %d",&write_bytes);
+                        fgets(line,sizeof(line),fp);
+                        sscanf(line,"%*s %d",&cancelled);
+                        fclose(fp);
                         }
+                        }else{
+                        printf("rchar: %d\n",rchar);
+                        printf("wchar: %d\n",wchar);
+                        printf("syscr: %d\n",syscr);
+                        printf("syscw: %d\n",syscw);
+                        printf("read_bytes: %d\n",read_bytes);
+                        printf("write_bytes: %d\n",write_bytes);
+                        printf("cancelled: %d\n",cancelled);
+                        break;
+                        }
+                        }
+                        
+                        //while ((w = wait(&status)) != pid && w != -1){
+                             //while((ch = fgetc(fp)) != EOF){
+                             //    printf("%c\n",ch);
+                             //}
+                        //     continue;          
+                        //}         
                         //if(pid != 0){
 		}
 
@@ -173,8 +215,9 @@ int main() {
                         //last argument must be NULL for execvp()
                         av[ac] = NULL; */
                
+                        //printTokens(bucket, numI);
                         bucket[0] = addPath(bucket[0],pathtokens);
-                        printTokens(bucket, numI);
+                        //printTokens(bucket, numI);
                         //printf("%s\n",bucket[0]);                        
 			//execute program av[0] with arguments av[0]... replacing this program
                         execv(bucket[0],bucket);
@@ -212,7 +255,7 @@ char** addToken(char** instr, char* tok, int numTokens)
                 new_arr[i] = (char *)malloc((strlen(instr[i])+1) * sizeof(char));
                 memset(new_arr[i], '\0', (strlen(instr[i])+1)*sizeof(char));
 	        strcpy(new_arr[i], instr[i]);
-                printf("%s\n",new_arr[i]);
+                //printf("%s\n",new_arr[i]);
         }
         
         /*add new token*/
@@ -238,9 +281,8 @@ void printTokens(char** instr, int numTokens)
 char * addPath(char * instr, char ** path){
        int i = 0;
        int tmp = 0;
-       struct dirent *dp;
-       DIR *d;
        char * tmp_command;
+               //printf("instr: %s\n",instr);
        char * tmp_instr = (char*)malloc(100*sizeof(char));
        memset(tmp_instr, '\0', (100)*sizeof(char));
        bool containsslash = false;
@@ -262,21 +304,26 @@ char * addPath(char * instr, char ** path){
            strcpy(tmp_instr,instr);
            tmp_command = &instr[tmp+1];
            tmp_instr[tmp] = '\0';
+           DIR *d;
            d = opendir(tmp_instr);
            if(d == NULL || strcmp(tmp_command,"")==0){
                printf("%s: Command not found.\n",instr);
                free(tmp_instr);
+               closedir(d);
                return NULL;
            }else{
+                   struct dirent *dp;
 		   while((dp = readdir(d))!= NULL){
 			   if(strcmp(tmp_command,dp->d_name)==0){
                                    free(tmp_instr);
+                                   closedir(d);
 				   return instr;
 			   }
 		   }
            }
                printf("%s: Command not found.\n",instr);
                free(tmp_instr);
+               closedir(d);
                return NULL;
        }else if(containsslash){
            while(instr[i]!='\0'){
@@ -289,11 +336,14 @@ char * addPath(char * instr, char ** path){
            }
            i = 0;
        }
+       i = 0;
        //add absolute path for execution
        while(path[i] != NULL){
-            //printf("%s\n",path[i+1]);
+            //printf("%s\n",path[i]);
+            DIR *d;
             d = opendir(path[i]);
             if(d){
+                struct dirent *dp;
                 while((dp = readdir(d))!= NULL){
                     //printf("%s\n", dp->d_name);
                     if(strcmp(instr,dp->d_name)==0){
@@ -303,6 +353,7 @@ char * addPath(char * instr, char ** path){
                        strcat(new_path,"/");
                        strcat(new_path,dp->d_name);
                        free(tmp_instr);
+                       closedir(d);
                        return new_path;
                     }
                 }
