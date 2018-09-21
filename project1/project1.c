@@ -20,19 +20,21 @@ int main() {
         int w;
         int status;
    	struct timeval start, finish;
+        char* path;
+        char ** pathtokens;
+        pathtokens = parsePath(path);
 	
 	gettimeofday(&start, NULL);
 
-        char* path;
-        char ** pathtokens = parsePath(path);
 
         while (1) {
                 char * tmp = (char *)malloc(100*sizeof(char));
                 memset(tmp, '\0', 100*sizeof(char));
-                printf("%s@%s::%s%s",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name(),"-> ");
+                printf("%s@%s::%s -> ",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name());
 
-                int numI = 0;                /* number of tokens in an instruction*/
-
+                int numI;                /* number of tokens in an instruction*/
+                numI = 0;
+ 
                 do {                            /* loop reads character sequences separated by whitespace*/
                         //printf("path: %s %s %s \n",pathtokens[0],pathtokens[1],pathtokens[2]);
                         scanf( "%s", token);
@@ -84,7 +86,7 @@ int main() {
 				memcpy(tempChar, bucket[1],1);
 				if(tempChar[0] ==  '$'){
 					strcpy(tempS,tempS+1);
-					if(ePath = getenv(tempS)){
+					if((ePath = getenv(tempS))){
 						printf("%s\n",ePath);
 					}
 					else{
@@ -120,79 +122,77 @@ int main() {
 		}
 		else if(strcmp(bucket[0], "io")==0){
 			FILE *fp;
-                        
-                        char file_name[50];
 
-                        if ((pid = fork()) == 0){
-                        bucket[1] = addPath(bucket[1],pathtokens);
-                        //printf("%s\n",bucket[0]);                        
-			//execute program av[0] with arguments av[0]... replacing this program
-                        //printTokens(new_bucket, numI-1);
-                        execv(bucket[1],&bucket[1]);
-                        //execv(bucket[1],&bucket[1]);
-                        /*fprintf(stderr, "can't execute %s\n", av[0]);*/
-                        exit(EXIT_FAILURE);
-                        }
-                        //sprintf(file_name,"/proc/%d/io",pid);
-                        //char ch;
-                        //fp = fopen(file_name,"r");
-                        //while((ch = fgetc(fp)) != EOF){
-                        //    printf("%c",ch);
-                        //}
-                        //if(fp!=NULL){
-                        //printf("%s\n",fp);
-                        //}
-                        //wait(&pid);
-                        int tmp = getpgid(pid);
-                        int rchar = 0;
-                        int wchar = 0;
-                        int syscr = 0;
-                        int syscw = 0;
-                        int read_bytes = 0;
-                        int write_bytes = 0;
-                        int cancelled = 0;
-                        while(true){
-                        char line[100];
-                        if(waitpid(pid, &status, WNOHANG) == 0){
-                        sprintf(file_name,"/proc/%d/io",pid);
-                        char ch;
-                        fp = fopen(file_name,"r");
-                        if(fp!=NULL){
-                        fgets(line,sizeof(line),fp);
-                        sscanf(line,"%*s %d",&rchar);
-                        fgets(line,sizeof(line),fp);
-                        sscanf(line,"%*s %d",&wchar);
-                        fgets(line,sizeof(line),fp);
-                        sscanf(line,"%*s %d",&syscr);
-                        fgets(line,sizeof(line),fp);
-                        sscanf(line,"%*s %d",&syscw);
-                        fgets(line,sizeof(line),fp);
-                        sscanf(line,"%*s %d",&read_bytes);
-                        fgets(line,sizeof(line),fp);
-                        sscanf(line,"%*s %d",&write_bytes);
-                        fgets(line,sizeof(line),fp);
-                        sscanf(line,"%*s %d",&cancelled);
-                        fclose(fp);
-                        }
-                        }else{
-                        printf("rchar: %d\n",rchar);
-                        printf("wchar: %d\n",wchar);
-                        printf("syscr: %d\n",syscr);
-                        printf("syscw: %d\n",syscw);
-                        printf("read_bytes: %d\n",read_bytes);
-                        printf("write_bytes: %d\n",write_bytes);
-                        printf("cancelled: %d\n",cancelled);
-                        break;
-                        }
-                        }
-                        
-                        //while ((w = wait(&status)) != pid && w != -1){
-                             //while((ch = fgetc(fp)) != EOF){
-                             //    printf("%c\n",ch);
-                             //}
-                        //     continue;          
-                        //}         
-                        //if(pid != 0){
+			char file_name[50];
+
+			if ((pid = fork()) == 0){
+				bucket[1] = addPath(bucket[1],pathtokens);
+				//printf("%s\n",bucket[0]);                        
+				//execute program av[0] with arguments av[0]... replacing this program
+				//printTokens(new_bucket, numI-1);
+				execv(bucket[1],&bucket[1]);
+				//execv(bucket[1],&bucket[1]);
+				/*fprintf(stderr, "can't execute %s\n", av[0]);*/
+				exit(EXIT_FAILURE);
+			}
+			//sprintf(file_name,"/proc/%d/io",pid);
+			//char ch;
+			//fp = fopen(file_name,"r");
+			//while((ch = fgetc(fp)) != EOF){
+			//    printf("%c",ch);
+			//}
+			//if(fp!=NULL){
+			//printf("%s\n",fp);
+			//}
+			//wait(&pid);
+			getpgid(pid);
+			int rchar = 0;
+			int wchar = 0;
+			int syscr = 0;
+			int syscw = 0;
+			int read_bytes = 0;
+			int write_bytes = 0;
+			int cancelled = 0;
+			while(true){
+				char line[100];
+				if(waitpid(pid, &status, WNOHANG) == 0){
+					sprintf(file_name,"/proc/%d/io",pid);
+					fp = fopen(file_name,"r");
+					if(fp!=NULL){
+						fgets(line,sizeof(line),fp);
+						sscanf(line,"%*s %d",&rchar);
+						fgets(line,sizeof(line),fp);
+						sscanf(line,"%*s %d",&wchar);
+						fgets(line,sizeof(line),fp);
+						sscanf(line,"%*s %d",&syscr);
+						fgets(line,sizeof(line),fp);
+						sscanf(line,"%*s %d",&syscw);
+						fgets(line,sizeof(line),fp);
+						sscanf(line,"%*s %d",&read_bytes);
+						fgets(line,sizeof(line),fp);
+						sscanf(line,"%*s %d",&write_bytes);
+						fgets(line,sizeof(line),fp);
+						sscanf(line,"%*s %d",&cancelled);
+						fclose(fp);
+					}
+				}else{
+					printf("rchar: %d\n",rchar);
+					printf("wchar: %d\n",wchar);
+					printf("syscr: %d\n",syscr);
+					printf("syscw: %d\n",syscw);
+					printf("read_bytes: %d\n",read_bytes);
+					printf("write_bytes: %d\n",write_bytes);
+					printf("cancelled: %d\n",cancelled);
+					break;
+				}
+			}
+
+			//while ((w = wait(&status)) != pid && w != -1){
+			//while((ch = fgetc(fp)) != EOF){
+			//    printf("%c\n",ch);
+			//}
+			//     continue;          
+			//}         
 		}
 
                 else if ((pid = fork()) == 0)
@@ -236,7 +236,7 @@ int main() {
         free(bucket);	/*free dynamic memory*/
         printf("Exiting...\n");
 	gettimeofday(&finish, NULL);
-	printf("\tSession time: %ds\n",(finish.tv_sec-start.tv_sec));
+	printf("\tSession time: %ds\n",(int)(finish.tv_sec-start.tv_sec));
         return 0;
 }
 
@@ -265,7 +265,6 @@ char** addToken(char** instr, char* tok, int numTokens)
         
         if (numTokens > 0)
         free(instr);
-        new_arr[numTokens+1] == NULL;
         return new_arr;
 }
 
@@ -279,11 +278,14 @@ void printTokens(char** instr, int numTokens)
 }
 
 char * addPath(char * instr, char ** path){
-       int i = 0;
-       int tmp = 0;
+       int i;
+       DIR *d;
+       int tmp;
        char * tmp_command;
                //printf("instr: %s\n",instr);
        char * tmp_instr = (char*)malloc(100*sizeof(char));
+       tmp = 0;
+       i = 0;
        memset(tmp_instr, '\0', (100)*sizeof(char));
        bool containsslash = false;
         while(instr[i]!='\0'){
@@ -304,7 +306,6 @@ char * addPath(char * instr, char ** path){
            strcpy(tmp_instr,instr);
            tmp_command = &instr[tmp+1];
            tmp_instr[tmp] = '\0';
-           DIR *d;
            d = opendir(tmp_instr);
            if(d == NULL || strcmp(tmp_command,"")==0){
                printf("%s: Command not found.\n",instr);
@@ -363,7 +364,7 @@ char * addPath(char * instr, char ** path){
        }
        printf("%s: Command not found.\n",instr);
        free(tmp_instr);
-       return; 
+       return NULL; 
 
 }
  
