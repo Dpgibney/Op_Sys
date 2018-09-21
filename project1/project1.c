@@ -28,6 +28,7 @@ int main() {
 
         while (1) {
                 char * tmp = (char *)malloc(100*sizeof(char));
+                memset(tmp, '\0', 100*sizeof(char));
                 printf("%s@%s::%s%s",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name(),"-> ");
 
                 int numI = 0;                /* number of tokens in an instruction*/
@@ -71,8 +72,10 @@ int main() {
                         }
 
                 } while ('\n' != getchar());    /*until end of line is reached*/
-
-                //printTokens(bucket, numI);
+                
+                bucket[numI] = NULL;
+              
+                printf("bucket address %d\n",bucket);
 		if(strcmp(bucket[0], "echo") == 0){
 			if(bucket[1] != NULL){
 				char tempChar[1];
@@ -128,23 +131,26 @@ int main() {
                         printTokens(new_bucket, numI-1);
                         execv(new_bucket[0],new_bucket);
                         //execv(bucket[1],&bucket[1]);
-                        printf("io comada");
                         /*fprintf(stderr, "can't execute %s\n", av[0]);*/
                         exit(EXIT_FAILURE);
                         }
                         sprintf(file_name,"/proc/%d/io",pid);
-                        printf("%s\n",file_name);
-                        
+                        char ch;
                         fp = fopen(file_name,"r");
-                        if(fp!=NULL){
-                        printf("%s\n",fp);
+                        while((ch = fgetc(fp)) != EOF){
+                            printf("%c",ch);
                         }
+                        //if(fp!=NULL){
+                        //printf("%s\n",fp);
+                        //}
                         
-                         while ((w = wait(&status)) != pid && w != -1){
+                        while ((w = wait(&status)) != pid && w != -1){
                              continue;          
                         }         
+                        while((ch = fgetc(fp)) != EOF){
+                            printf("%c",ch);
+                        }
                         //if(pid != 0){
-                        printf("io comada");
 		}
 
                 else if ((pid = fork()) == 0)
@@ -177,7 +183,7 @@ int main() {
                         }
                          while ((w = wait(&status)) != pid && w != -1){
                              continue;          
-                        }         
+                        }
                         //if(pid != 0){
                         //    int childstatus;
                         //    waitpid(pid,&childstatus,WNOHANG);
@@ -198,16 +204,20 @@ char** addToken(char** instr, char* tok, int numTokens)
         int i;
         
         char** new_arr;
-        new_arr = (char**)malloc((numTokens+2) * sizeof(char*));				
+        new_arr = (char**)malloc((numTokens+1) * sizeof(char*));				
+        memset(new_arr, '\0', (numTokens+1)*sizeof(char));
         /*copy values into new array*/
         for (i = 0; i < numTokens; i++)
         {
                 new_arr[i] = (char *)malloc((strlen(instr[i])+1) * sizeof(char));
+                memset(new_arr[i], '\0', (strlen(instr[i])+1)*sizeof(char));
 	        strcpy(new_arr[i], instr[i]);
+                printf("%s\n",new_arr[i]);
         }
         
         /*add new token*/
         new_arr[numTokens] = (char *)malloc((strlen(tok)+1) * sizeof(char));
+        memset(new_arr[numTokens], '\0', (strlen(tok)+1)*sizeof(char));
         strcpy(new_arr[numTokens], tok);
         
         if (numTokens > 0)
@@ -232,6 +242,7 @@ char * addPath(char * instr, char ** path){
        DIR *d;
        char * tmp_command;
        char * tmp_instr = (char*)malloc(100*sizeof(char));
+       memset(tmp_instr, '\0', (100)*sizeof(char));
        bool containsslash = false;
         while(instr[i]!='\0'){
                if(instr[i] == '/'){
@@ -254,15 +265,18 @@ char * addPath(char * instr, char ** path){
            d = opendir(tmp_instr);
            if(d == NULL || strcmp(tmp_command,"")==0){
                printf("%s: Command not found.\n",instr);
+               free(tmp_instr);
                return NULL;
            }else{
 		   while((dp = readdir(d))!= NULL){
 			   if(strcmp(tmp_command,dp->d_name)==0){
+                                   free(tmp_instr);
 				   return instr;
 			   }
 		   }
            }
                printf("%s: Command not found.\n",instr);
+               free(tmp_instr);
                return NULL;
        }else if(containsslash){
            while(instr[i]!='\0'){
@@ -284,9 +298,11 @@ char * addPath(char * instr, char ** path){
                     //printf("%s\n", dp->d_name);
                     if(strcmp(instr,dp->d_name)==0){
                        char * new_path = (char *)malloc(200*sizeof(char));
+                       memset(new_path, '\0', (200)*sizeof(char));
                        strcpy(new_path,path[i]);
                        strcat(new_path,"/");
                        strcat(new_path,dp->d_name);
+                       free(tmp_instr);
                        return new_path;
                     }
                 }
@@ -295,6 +311,7 @@ char * addPath(char * instr, char ** path){
             closedir(d);
        }
        printf("%s: Command not found.\n",instr);
+       free(tmp_instr);
        return; 
 
 }
