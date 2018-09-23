@@ -3,14 +3,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <stdbool.h>
+#include <errno.h>
+
+
 char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
 char** parsePath(char * path);
+void redirect(char *args[], char *filename, int option);
  
 int main() {
         char token[256];		/* holds instruction token*/
@@ -20,24 +27,21 @@ int main() {
         int w;
         int status;
    	struct timeval start, finish;
-        char* path;
-        char ** pathtokens;
-        pathtokens = parsePath(path);
 	
 	gettimeofday(&start, NULL);
 
+        char* path;
+        char ** pathtokens = parsePath(path);
 
         while (1) {
                 char * tmp = (char *)malloc(100*sizeof(char));
-                memset(tmp, '\0', 100*sizeof(char));
-                printf("%s@%s::%s -> ",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name());
+                printf("%s@%s::%s%s",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name(),"-> ");
 
-                int numI;                /* number of tokens in an instruction*/
-                numI = 0;
- 
+                int numI = 0;                /* number of tokens in an instruction*/
+
                 do {                            /* loop reads character sequences separated by whitespace*/
-                        //printf("path: %s %s %s \n",pathtokens[0],pathtokens[1],pathtokens[2]);
                         scanf( "%s", token);
+
                         int i;
                         int start;
                         start = 0;
@@ -75,9 +79,8 @@ int main() {
                         }
 
                 } while ('\n' != getchar());    /*until end of line is reached*/
-                
-                bucket[numI] = NULL;
-              
+
+                //printTokens(bucket, numI);
 		if(strcmp(bucket[0], "echo") == 0){
 			if(bucket[1] != NULL){
 				char tempChar[1];
@@ -86,7 +89,7 @@ int main() {
 				memcpy(tempChar, bucket[1],1);
 				if(tempChar[0] ==  '$'){
 					strcpy(tempS,tempS+1);
-					if((ePath = getenv(tempS))){
+					if(ePath = getenv(tempS)){
 						printf("%s\n",ePath);
 					}
 					else{
@@ -106,93 +109,10 @@ int main() {
 			break;
 		}
 		else if(strcmp(bucket[0], "cd")==0){
-			if(bucket[1] != NULL){
-				if(bucket[2] == NULL){
-					if(chdir(bucket[1])!= -1){
-						chdir(bucket[1]);
-					}
-					else{
-						printf("Error target is not a directory\n");
-					}
-				}
-				else{
-					printf("Error more than one argument present\n");
-				}
-			}
+			printf("cd jsda");
 		}
 		else if(strcmp(bucket[0], "io")==0){
-			FILE *fp;
-
-			char file_name[50];
-
-			if ((pid = fork()) == 0){
-				bucket[1] = addPath(bucket[1],pathtokens);
-				//printf("%s\n",bucket[0]);                        
-				//execute program av[0] with arguments av[0]... replacing this program
-				//printTokens(new_bucket, numI-1);
-				execv(bucket[1],&bucket[1]);
-				//execv(bucket[1],&bucket[1]);
-				/*fprintf(stderr, "can't execute %s\n", av[0]);*/
-				exit(EXIT_FAILURE);
-			}
-			//sprintf(file_name,"/proc/%d/io",pid);
-			//char ch;
-			//fp = fopen(file_name,"r");
-			//while((ch = fgetc(fp)) != EOF){
-			//    printf("%c",ch);
-			//}
-			//if(fp!=NULL){
-			//printf("%s\n",fp);
-			//}
-			//wait(&pid);
-			getpgid(pid);
-			int rchar = 0;
-			int wchar = 0;
-			int syscr = 0;
-			int syscw = 0;
-			int read_bytes = 0;
-			int write_bytes = 0;
-			int cancelled = 0;
-			while(true){
-				char line[100];
-				if(waitpid(pid, &status, WNOHANG) == 0){
-					sprintf(file_name,"/proc/%d/io",pid);
-					fp = fopen(file_name,"r");
-					if(fp!=NULL){
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&rchar);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&wchar);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&syscr);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&syscw);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&read_bytes);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&write_bytes);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&cancelled);
-						fclose(fp);
-					}
-				}else{
-					printf("rchar: %d\n",rchar);
-					printf("wchar: %d\n",wchar);
-					printf("syscr: %d\n",syscr);
-					printf("syscw: %d\n",syscw);
-					printf("read_bytes: %d\n",read_bytes);
-					printf("write_bytes: %d\n",write_bytes);
-					printf("cancelled: %d\n",cancelled);
-					break;
-				}
-			}
-
-			//while ((w = wait(&status)) != pid && w != -1){
-			//while((ch = fgetc(fp)) != EOF){
-			//    printf("%c\n",ch);
-			//}
-			//     continue;          
-			//}         
+			printf("io comada");
 		}
 
                 else if ((pid = fork()) == 0)
@@ -215,9 +135,7 @@ int main() {
                         //last argument must be NULL for execvp()
                         av[ac] = NULL; */
                
-                        //printTokens(bucket, numI);
                         bucket[0] = addPath(bucket[0],pathtokens);
-                        //printTokens(bucket, numI);
                         //printf("%s\n",bucket[0]);                        
 			//execute program av[0] with arguments av[0]... replacing this program
                         execv(bucket[0],bucket);
@@ -226,7 +144,7 @@ int main() {
                         }
                          while ((w = wait(&status)) != pid && w != -1){
                              continue;          
-                        }
+                        }        
                         //if(pid != 0){
                         //    int childstatus;
                         //    waitpid(pid,&childstatus,WNOHANG);
@@ -236,7 +154,7 @@ int main() {
         free(bucket);	/*free dynamic memory*/
         printf("Exiting...\n");
 	gettimeofday(&finish, NULL);
-	printf("\tSession time: %ds\n",(int)(finish.tv_sec-start.tv_sec));
+	printf("\tSession time: %ds\n",(finish.tv_sec-start.tv_sec));
         return 0;
 }
 
@@ -248,23 +166,20 @@ char** addToken(char** instr, char* tok, int numTokens)
         
         char** new_arr;
         new_arr = (char**)malloc((numTokens+1) * sizeof(char*));				
-        memset(new_arr, '\0', (numTokens+1)*sizeof(char));
         /*copy values into new array*/
         for (i = 0; i < numTokens; i++)
         {
                 new_arr[i] = (char *)malloc((strlen(instr[i])+1) * sizeof(char));
-                memset(new_arr[i], '\0', (strlen(instr[i])+1)*sizeof(char));
 	        strcpy(new_arr[i], instr[i]);
-                //printf("%s\n",new_arr[i]);
         }
         
         /*add new token*/
         new_arr[numTokens] = (char *)malloc((strlen(tok)+1) * sizeof(char));
-        memset(new_arr[numTokens], '\0', (strlen(tok)+1)*sizeof(char));
         strcpy(new_arr[numTokens], tok);
         
         if (numTokens > 0)
         free(instr);
+
         return new_arr;
 }
 
@@ -272,21 +187,17 @@ void printTokens(char** instr, int numTokens)
 {
         int i;
         printf("Tokens:\n");
-        for (i = 0; i < numTokens; i++){
+        for (i = 0; i < numTokens; i++)
                 printf("#%s#\n", instr[i]);
-        }
 }
 
 char * addPath(char * instr, char ** path){
-       int i;
+       int i = 0;
+       int tmp = 0;
+       struct dirent *dp;
        DIR *d;
-       int tmp;
        char * tmp_command;
-               //printf("instr: %s\n",instr);
        char * tmp_instr = (char*)malloc(100*sizeof(char));
-       tmp = 0;
-       i = 0;
-       memset(tmp_instr, '\0', (100)*sizeof(char));
        bool containsslash = false;
         while(instr[i]!='\0'){
                if(instr[i] == '/'){
@@ -309,22 +220,15 @@ char * addPath(char * instr, char ** path){
            d = opendir(tmp_instr);
            if(d == NULL || strcmp(tmp_command,"")==0){
                printf("%s: Command not found.\n",instr);
-               free(tmp_instr);
-               closedir(d);
                return NULL;
            }else{
-                   struct dirent *dp;
 		   while((dp = readdir(d))!= NULL){
 			   if(strcmp(tmp_command,dp->d_name)==0){
-                                   free(tmp_instr);
-                                   closedir(d);
 				   return instr;
 			   }
 		   }
            }
                printf("%s: Command not found.\n",instr);
-               free(tmp_instr);
-               closedir(d);
                return NULL;
        }else if(containsslash){
            while(instr[i]!='\0'){
@@ -337,24 +241,18 @@ char * addPath(char * instr, char ** path){
            }
            i = 0;
        }
-       i = 0;
        //add absolute path for execution
        while(path[i] != NULL){
-            //printf("%s\n",path[i]);
-            DIR *d;
+            //printf("%s\n",path[i+1]);
             d = opendir(path[i]);
             if(d){
-                struct dirent *dp;
                 while((dp = readdir(d))!= NULL){
                     //printf("%s\n", dp->d_name);
                     if(strcmp(instr,dp->d_name)==0){
                        char * new_path = (char *)malloc(200*sizeof(char));
-                       memset(new_path, '\0', (200)*sizeof(char));
                        strcpy(new_path,path[i]);
                        strcat(new_path,"/");
                        strcat(new_path,dp->d_name);
-                       free(tmp_instr);
-                       closedir(d);
                        return new_path;
                     }
                 }
@@ -363,8 +261,7 @@ char * addPath(char * instr, char ** path){
             closedir(d);
        }
        printf("%s: Command not found.\n",instr);
-       free(tmp_instr);
-       return NULL; 
+       return; 
 
 }
  
@@ -395,3 +292,52 @@ char** parsePath(char* path){
         pathtokens[paths+1] = NULL;
         return pathtokens;
 }
+
+void redirect(char *args[], char *filename, int option) {
+	pid_t pid;
+	int fd;
+	int err = -1;
+	if ((pid = fork()) == -1) {
+		printf("Error: Child process could not be created\n");
+	}
+
+	if (pid == 0) { //Output redirection
+		if (option == 0) { //unsure of what option is for
+						   // command is outputting to file (CMD > FILE)
+			fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0755);
+			if ((fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0755)) == -1) {
+				fprintf(stderr, "shell1: error creating file: %s\n", strerror(errno));
+				return EXIT_FAILURE;
+			}
+			dup2(fd, STDOUT_FILENO);
+			close(fd);
+		}
+
+	}
+	else {
+		if (option == 1)
+			// file is inputting to command (CMD < FILE)
+			fd = open(filename, O_RDWR, 0755);
+		if ((fd = open(filename, O_RDWR, 0755)) == -1) {
+			fprintf(stderr, "shell2: no such file or directory: %s\n", strerror(errno));
+			return EXIT_FAILURE;
+		}
+		dup2(fd, STDIN_FILENO);
+		close(fd);
+		return 0;
+		}
+	}
+
+	/* //tokenizer pipe check
+	for (i = 0; i < strlen(token); i++)
+	{
+	if (token[i] == '|' || token[i] == '>' || token[i] == '<' || token[i] == '&')
+	{
+	if (i-start > 0)
+	{
+	memcpy(temp, token + start, i - start);
+	temp[i-start] = '\0';
+	bucket = addToken(bucket, temp, numI);
+	numI++;
+	}
+	*/
