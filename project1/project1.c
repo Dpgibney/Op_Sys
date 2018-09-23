@@ -1,25 +1,30 @@
-#include <stdio.h>
+#include <stdio.h> 
+#include <dirent.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <dirent.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <stdbool.h>
-
+#include <errno.h>
 struct queue{
 	int position;
 	int pid;
 	bool state;
 	char *cmd;
 };
+
 char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
 char** parsePath(char * path);
 struct queue* allocate(struct queue *processes, int num);
 bool ifBackground(char** instr, int num);
+void redirect(char **args[]);
+char * expandenv(char* env);
  
 int main() {
         char token[256];		/* holds instruction token*/
@@ -277,10 +282,10 @@ int main() {
                         	//if(pid != 0){
                         	//    int childstatus;
                         	//    waitpid(pid,&childstatus,WNOHANG);
-                        	//} 
-
-        	}  /*until "exit" is read in*/
-	}
+                        	//}
+                       	} 
+        }  /*until "exit" is read in*/
+	
         free(bucket);	/*free dynamic memory*/
         printf("Exiting...\n");
 	gettimeofday(&finish, NULL);
@@ -459,4 +464,50 @@ bool ifBackground(char** instr, int num){
 		counter=counter+1;
 	}
 	return false;
+}
+void redirect(char **args[]) {
+	pid_t pid;
+	int infile, outfile;
+	int i = 0;
+	if ((pid = fork()) == -1) {
+		printf("Error: Child process could not be created\n");
+		return (EXIT_FAILURE);
+	}
+
+	if (pid == 0) { //Working in child process
+	        if(strcmp(args[i], ">") == 0) { //check for ">") { 
+			// command is outputting to file (CMD > FILE)
+			if(args[i+1]== NULL){
+				printf("Error: Missing file name for redirect\n");
+				return EXIT_FAILURE;
+				}
+			outfile = open(args[i+1], O_WRONLY | O_TRUNC | O_CREAT);
+			if ((outfile = open(args[i+1], O_WRONLY | O_CREAT | O_TRUNC)) == -1) {
+				fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+				return (EXIT_FAILURE);
+			}
+			dup2(outfile, STDOUT_FILENO);
+			close(outfile);
+		}
+
+	}
+	else if(strcmp(args[i], "<") == 0) { // file is inputting to command (CMD < FILE)
+			if(args[i+1]== NULL){ printf("Error: Missing file name for redirect\n");
+        	                return EXIT_FAILURE;
+				}
+			infile = open(args[i+1], O_RDONLY, 0766);
+			if ((infile = open(args[i+1], O_RDONLY, 0766)) == -1) {
+				fprintf(stderr, "shell: no such file or directory: %s\n", strerror(errno));
+				return (EXIT_FAILURE);
+			}
+		dup2(infile, STDIN_FILENO);
+		close(infile);
+		return (EXIT_FAILURE);
+		}
+
+	}
+	
+
+char * expandenv(char* env){
+     return getenv(env+1); 
 }
