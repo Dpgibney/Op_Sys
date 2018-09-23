@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <dirent.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -16,6 +15,7 @@ void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
 char** parsePath(char * path);
 void redirect(char *args[], char *filename, int option);
+char * expandenv(char* env);
  
 int main() {
         char token[256];		/* holds instruction token*/
@@ -131,6 +131,13 @@ int main() {
 			char file_name[50];
 
 			if ((pid = fork()) == 0){
+                                int i = 0;
+                                while(bucket[i]!=NULL){
+                                    if(bucket[i][0]=='$'){
+                                        bucket[i] = expandenv(bucket[i]);
+                                    }
+                                i++;
+                                }
 				bucket[1] = addPath(bucket[1],pathtokens);
 				//printf("%s\n",bucket[0]);                        
 				//execute program av[0] with arguments av[0]... replacing this program
@@ -222,7 +229,15 @@ int main() {
                
                         //printTokens(bucket, numI);
                         bucket[0] = addPath(bucket[0],pathtokens);
-                        //printTokens(bucket, numI);
+                        int i = 0;
+                        while(bucket[i]!=NULL){
+                            if(bucket[i][0]=='$'){
+                                bucket[i] = expandenv(bucket[i]);
+                            }
+                        i++;
+                        }
+                   
+                        printTokens(bucket, numI);
                         //printf("%s\n",bucket[0]);                        
 			//execute program av[0] with arguments av[0]... replacing this program
                         execv(bucket[0],bucket);
@@ -433,4 +448,8 @@ void redirect(char *args[], char *filename, int option) {
 		close(fd);
 		return 0;
 	}
+}
+
+char * expandenv(char* env){
+     return getenv(env+1); 
 }
