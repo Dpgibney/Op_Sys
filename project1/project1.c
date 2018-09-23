@@ -1,21 +1,21 @@
 #include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <string.h> 
+#include <stdlib.h> 
+#include <unistd.h> 
 #include <dirent.h>
 #include <fcntl.h>
-#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <stdbool.h>
 #include <errno.h>
+
 char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
 char** parsePath(char * path);
-void redirect(char *args[], char *filename, int option);
+void redirect(char **args[]);
  
 int main() {
         char token[256];		/* holds instruction token*/
@@ -182,7 +182,7 @@ int main() {
 					}
 				}else{
 					printf("rchar: %d\n",rchar);
-					printf("wchar: %d\n",wchar);
+					printf("wGchar: %d\n",wchar);
 					printf("syscr: %d\n",syscr);
 					printf("syscw: %d\n",syscw);
 					printf("read_bytes: %d\n",read_bytes);
@@ -400,36 +400,46 @@ char** parsePath(char* path){
         pathtokens[paths+1] = NULL;
         return pathtokens;
 }
-void redirect(char **args[], int option) {
+void redirect(char **args[]) {
 	pid_t pid;
 	int infile, outfile;
-	int err = -1;
+	int i = 0;
 	if ((pid = fork()) == -1) {
 		printf("Error: Child process could not be created\n");
+		return (EXIT_FAILURE);
 	}
 
 	if (pid == 0) { //Working in child process
-	        if(strcmp(args[i]. ">") == 0) { //check for ">" 
+	        if(strcmp(args[i], ">") == 0) { //check for ">") { 
 			// command is outputting to file (CMD > FILE)
-			outfile = open(args[i+1], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWGRP | O_CLOEXEC,  0766);
-			if ((outfile = open(args[i+1], O_RDWR | O_CREAT | O_TRUNC, 0766)) == -1) {
-				fprintf(stderr, "shell1: error creating file: %s\n", strerror(errno));
+			if(args[i+1]== NULL){
+				printf("Error: Missing file name for redirect\n");
 				return EXIT_FAILURE;
+				}
+			outfile = open(args[i+1], O_WRONLY | O_TRUNC | O_CREAT);
+			if ((outfile = open(args[i+1], O_WRONLY | O_CREAT | O_TRUNC)) == -1) {
+				fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+				return (EXIT_FAILURE);
 			}
 			dup2(outfile, STDOUT_FILENO);
 			close(outfile);
 		}
 
 	}
-	else if(strcmp(args[i], ">") == 0) {
-			// file is inputting to command (CMD < FILE)
+	else if(strcmp(args[i], "<") == 0) { // file is inputting to command (CMD < FILE)
+			if(args[i+1]== NULL){ printf("Error: Missing file name for redirect\n");
+        	                return EXIT_FAILURE;
+				}
 			infile = open(args[i+1], O_RDONLY, 0766);
-		if ((infile = open(args[i+1], O_RDONLY, 0766)) == -1) {
-			fprintf(stderr, "shell2: no such file or directory: %s\n", strerror(errno));
-			return EXIT_FAILURE;
+			if ((infile = open(args[i+1], O_RDONLY, 0766)) == -1) {
+				fprintf(stderr, "shell: no such file or directory: %s\n", strerror(errno));
+				return (EXIT_FAILURE);
 		}
 		dup2(infile, STDIN_FILENO);
 		close(infile);
-		return 1;
+		return (EXIT_FAILURE);
+		}
+
+	args[0] = addPath((arg[0], pathtokens);
+	execv = (arg[0], args);
 	}
-}
