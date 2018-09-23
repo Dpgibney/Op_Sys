@@ -400,37 +400,36 @@ char** parsePath(char* path){
         pathtokens[paths+1] = NULL;
         return pathtokens;
 }
-void redirect(char *args[], char *filename, int option) {
+void redirect(char **args[], int option) {
 	pid_t pid;
-	int fd;
+	int infile, outfile;
 	int err = -1;
 	if ((pid = fork()) == -1) {
 		printf("Error: Child process could not be created\n");
 	}
 
-	if (pid == 0) { //Output redirection
-		if (option == 0) { //unsure of what option is for
+	if (pid == 0) { //Working in child process
+	        if(strcmp(args[i]. ">") == 0) { //check for ">" 
 			// command is outputting to file (CMD > FILE)
-			fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0755);
-			if ((fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 0755)) == -1) {
+			outfile = open(args[i+1], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWGRP | O_CLOEXEC,  0766);
+			if ((outfile = open(args[i+1], O_RDWR | O_CREAT | O_TRUNC, 0766)) == -1) {
 				fprintf(stderr, "shell1: error creating file: %s\n", strerror(errno));
 				return EXIT_FAILURE;
 			}
-			dup2(fd, STDOUT_FILENO);
-			close(fd);
+			dup2(outfile, STDOUT_FILENO);
+			close(outfile);
 		}
 
 	}
-	else {
-		if (option == 1)
+	else if(strcmp(args[i], ">") == 0) {
 			// file is inputting to command (CMD < FILE)
-			fd = open(filename, O_RDWR, 0755);
-		if ((fd = open(filename, O_RDWR, 0755)) == -1) {
+			infile = open(args[i+1], O_RDONLY, 0766);
+		if ((infile = open(args[i+1], O_RDONLY, 0766)) == -1) {
 			fprintf(stderr, "shell2: no such file or directory: %s\n", strerror(errno));
 			return EXIT_FAILURE;
 		}
-		dup2(fd, STDIN_FILENO);
-		close(fd);
-		return 0;
+		dup2(infile, STDIN_FILENO);
+		close(infile);
+		return 1;
 	}
 }
