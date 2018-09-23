@@ -7,6 +7,12 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <stdbool.h>
+
+struct queue{
+	int position;
+	int pid;
+	char cmd[256];
+};
 char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
@@ -20,7 +26,8 @@ int main() {
         int w;
         int status;
    	struct timeval start, finish;
-	
+	queue processes[1];
+
 	gettimeofday(&start, NULL);
 
         char* path;
@@ -140,7 +147,7 @@ int main() {
                         printf("%s\n",fp);
                         }
                         
-                         while ((w = wait(&status)) != pid && w != -1){
+                        while ((w = wait(&status)) != pid && w != -1){
                              continue;          
                         }         
                         //if(pid != 0){
