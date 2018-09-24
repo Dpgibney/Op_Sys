@@ -39,7 +39,7 @@ int main() {
         char ** pathtokens;
         pathtokens = parsePath(path);
 	int processcount = 1;
-	
+	int bgs = 0;	
 	
 	gettimeofday(&start, NULL);
 
@@ -95,7 +95,28 @@ int main() {
                 bucket[numI] = NULL;
 		
 		if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //CMD &
-			
+			/*bgs = bgs + 1;
+			if((pid = fork())==0){
+				bucket[0] = addPath(bucket[1], pathtokens);
+				execv(bucket[0],&bucket[0]);
+				exit(EXIT_FAILURE);
+			}	
+			getpgid(pid);
+			while(true){
+				if(waitpid(pid, &status, WNOHANG)==0){
+					processes = allocate(processes, processcount);
+                        		processes[bgs-1].position = bgs - 1;
+                       			processes[bgs-1].pid = pid;
+					processes[bgs-1].state = true;
+					
+				}
+				else{
+					printf("[%d] [%d]\n", bgs, pid);
+					break;
+				}
+			}
+			bgs= bgs - 1;
+			printf("HERE");*/
 		}
 		else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
 			if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //&cmd&
@@ -120,16 +141,22 @@ int main() {
 				//hardest implementation
 				int counter = 0;
 				bool bg = false;
-				for(counter = 0; counter < numI; counter+1){
-					if(strcmp(bucket[counter],"|")){
+				while(counter < numI){
+					if(strcmp(bucket[counter],"|")==0){
 						bg = true;
 					}
+					counter = counter+1;
 				}
 			}
 
 		}
-		printf("%d",numI);
-		if(ifBackground(bucket,numI)){printf("DASD");}
+		else{
+			if(ifBackground(bucket, numI)){
+				printf("Error: not a vaild input\n");
+			}
+		}
+
+		if(ifBackground(bucket,numI)){}
 		else{
 			if(strcmp(bucket[0], "echo") == 0){
 				if(bucket[1] != NULL){
