@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <stdio.h> 
 #include <dirent.h> 
 #include <string.h> 
 #include <stdlib.h>
@@ -21,7 +21,8 @@ char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
 char** parsePath(char * path);
-void redirect(char *args[]);
+void redirect(char *bucket[]);
+bool isRedirect(char *bucket[]);
 struct queue* allocate(struct queue *processes, int num);
 bool ifBackground(char** instr, int num);
 bool containsspecialchar(char ** bucket);
@@ -96,7 +97,6 @@ int main() {
                 } while ('\n' != getchar());    /*until end of line is reached*/
                 
                 bucket[numI] = NULL;
-		
 		if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0) && (strcmp(bucket[0],"&")!=0) && !containsspecialchar(bucket)){ //CMD &
                                     printf("made it to cmd &\n");
 			
@@ -190,7 +190,7 @@ int main() {
 					}
 				}
 				else{
-					printf("Nothing to check if it is an enviornmental variable\n");
+					printf("Nothing to check if it is an environmental variable\n");
 				}
 			}
 			else if(strcmp(bucket[0], "exit")==0){
@@ -497,38 +497,31 @@ bool ifBackground(char** instr, int num){
 			printf("HERE");
 		}
 		counter=counter+1;
-	}
-	return false;
+	} return false;
 }
 
-void redirect(char *args[])
-{
+void redirect(char *bucket[]) {
 	pid_t pid;
 	int infile, outfile;
 	int i = 0;
 	char ** pathtoken;
-	if ((pid = fork()) == -1) 
-	{
+	if ((pid = fork()) == -1){
 		printf("Error: Child process could not be created\n");
 		return (EXIT_FAILURE);
 	}
 
-	if (pid == 0) 
-	{ 
+	if (pid == 0){ 
 		//Working in child process
-		while(args[i]!= NULL) 
-		{
-			if(strcmp(args[i], ">") == 0) //check for ">"  
-			{
-				// command is outputting to file (CMD > FILE)
-				if(args[i+1]== NULL)
-				{
+		while(bucket[i]!= NULL) {
+			if(strcmp(bucket[i], ">") == 0) {
+				//check for ">"
+				//command is outputting to file (CMD > FILE)
+				if(bucket[i+1]== NULL){
 					printf("Error: Missing file name for redirect\n");
 					return EXIT_FAILURE;
 				}
-			args[i] = NULL;
-			if ((outfile = open(args[i+1], O_WRONLY | O_CREAT | O_TRUNC, 0766)) == -1) 
-			{
+			bucket[i] = NULL;
+			if ((outfile = open(bucket[i+1], O_WRONLY | O_CREAT | O_TRUNC , S_IRUSR | S_IWUSR, 0766)) == -1) {
 				fprintf(stderr, "error creating file: %s\n", strerror(errno));
 				return (EXIT_FAILURE);
 			}
@@ -536,17 +529,15 @@ void redirect(char *args[])
 			close(outfile);
 			}
 
-			else if(strcmp(args[i], "<") == 0) 
-			{ 
+			else if(strcmp(bucket[i], "<") == 0) {
+				//check for "<" 
 				//file is inputting to command (CMD < FILE)
-				if(args[i+1]== NULL)
-				{
+				if(bucket[i+1]== NULL){
 					printf("Error: Missing file name for redirect\n");
 					return EXIT_FAILURE;
 				}
-				args[i] = NULL;
-				if ((infile = open(args[i+1], O_RDONLY, 0766)) == -1) 
-				{
+				bucket[i] = NULL;
+				if ((infile = open(bucket[i+1], O_RDONLY | S_IRUSR | S_IWUSR, 0766)) == -1) {
 					fprintf(stderr, "no such file or directory: %s\n", strerror(errno));
 					return (EXIT_FAILURE);
 				}
@@ -555,12 +546,84 @@ void redirect(char *args[])
 				return (EXIT_FAILURE);
 			}
 
-			args[0]= addPath(args[0], pathtoken);
-			execv(args[0], args); 
-			i++;
-		}
+			bucket[0]= addPath(bucket[0], pathtoken); execv(bucket[0], bucket); 
+			i++; }
 	}		
 }
+
+bool isRedirect(char *bucket[]){
+int i = 0;
+	while(bucket[i] != NULL){
+		if(strcmp(bucket[i], ">") == 0)
+			return true;
+
+		else if(strcmp(bucket[i], "<") == 0)
+			return true;
+
+
+	i++;
+	}
+	return false;
+}
+
+/*
+void multipiping(char *bucket[]){
+int fd[2]; //position 0 handles output, position 1 handles input
+int fd2[2];
+
+int num_commands = 0;
+
+char *command[256];
+pid_t pid;
+int i, j, k, l = 0;
+
+while[bucket[l] != NULL){ 
+	//calculate the number of commands separated by '|'
+	if (strcmp(bucket[l],"|" == 0){
+		num_commands++;
+	}
+	l++;
+}
+num_commands++;
+
+//Main Loop, for each command between '|' pipes will be configured and stdin/out will be replaced.
+while (bucket[j] != NULL && end != 1){
+	k = 0;
+	while (strcmp(bucket{j], "|") != 0){
+		//auxillary array of pointers stores commands
+		command[k]= bucket[j];
+		j++;
+		if (args[j] == NULL){
+			// end used to keep program from renetering loop when arguments done
+			end = 1;
+			k++;
+			break;
+		}
+		k++
+	}
+	//last position of command will be NULL to indicate end when passed to exec
+	command[k] = NULL:
+	j++;
+	//Set different descriptors for pipes inputs and output, to connect commands
+	if (i%2 != 0){
+		pipe(fd); //for odd i
+	}else{
+		pipe(fd2); //for even i
+	}
+
+	if ((pid = fork()) == -1){
+		if (i !- num_commands -1){
+			if (i % 2 != 0){
+				close(fd[1]); // for odd i
+			}
+		printf("Error: Child process could not be created\n");
+		return (EXIT_FAILURE);
+	}
+
+}
+
+*/	
+
 	
 char * expandenv(char* env){
      return getenv(env+1); 
@@ -584,6 +647,7 @@ void stillrunning(struct queue *processes, int processcount){
     }
     printf("still running %d\n",j);
 }
+
 bool containsspecialchar(char ** bucket){
      int i;
      i = 0;
