@@ -109,25 +109,29 @@ int main() {
 				//behaves like CMD&
 				else{
                                     printf("made it to & cmd &\n");
-                                   // if(pid = fork() == 0){
-			           //      execv(bucket[1],&bucket[1]);
-                                   //      exit(EXIT_FAILURE);
-                                   // }
-                                   // else{
-                                   //     processes = allocate(processes,processcount);
-                                   //     processcount++;
-                                   //     processes[processcount-1].pid = pid;
-                                   //     processes[processcount-1].position = 1;
-                                   //     processes[processcount-1].state = true;
-	                           //     char * tmp = (char *)malloc(256*sizeof(char));
-                                   //     strcpy(tmp,bucket[1]);
-                                   //     int i = 2;
-                                   //     while(bucket[i] != NULL){
-                                   //          strcat(tmp," ");
-                                   //          strcat(tmp,bucket[i]);
-                                   //     }
-                                   //     processes[processcount-1].cmd = tmp;
-                                   // }
+                                    if((pid = fork()) == 0){
+					 bucket[1] = addPath(bucket[1],pathtokens);
+                                         bucket[numI-1] = NULL;
+			                 execv(bucket[1],&bucket[1]);
+					printf("Error there is no command");
+                                         exit(EXIT_FAILURE);
+                                    }
+                                    printf("pid %d\n",pid);
+                                    processes = allocate(processes,processcount);
+                                    processcount++;
+                                    processes[processcount-1].pid = pid;
+                                    processes[processcount-1].position = 1;
+                                    processes[processcount-1].state = true;
+	                            char * tmp = (char *)malloc(256*sizeof(char));
+                                    strcpy(tmp,bucket[1]);
+                                    int i = 2;
+                                    while(bucket[i] != NULL){
+                                         strcat(tmp," ");
+                                         strcat(tmp,bucket[i]);
+                                         i++;
+                                    }
+                                    processes[processcount-1].cmd = tmp;
+                                    
                                 }
                                 
 
@@ -221,6 +225,7 @@ int main() {
 					/*fprintf(stderr, "can't execute %s\n", av[0]);*/
 					exit(EXIT_FAILURE);
 				}
+                                    printf("pid %d\n",pid);
 				//sprintf(file_name,"/proc/%d/io",pid);
 				//char ch;
 				//fp = fopen(file_name,"r");
@@ -547,17 +552,22 @@ char * expandenv(char* env){
 }
 void stillrunning(struct queue *processes, int processcount){
     int i;
+    int j = 0;
     int w = 0;
     int status;
-    printf("still running %d\n",processcount);
+    int pid = 0;
     for(i = 0; i < processcount; i++){
+        printf("pid %d, cmd %s state %d\n",processes[i].pid, processes[i].cmd, processes[i].state);
         if(processes[i].state == true){ /*check if process is running */
-            if(waitpid(processes[i].pid, &status, WNOHANG) == 0){        
+            if(waitpid(processes[i].pid, &status, WNOHANG) != 0){        
                 printf("[%d] [%s]\n",processes[i].position,processes[i].cmd);
                 processes[i].state = false;
+            }else{
+                j++; //TODO this needs to be removed lated
             }
         }
     }
+    printf("still running %d\n",j);
 }
 bool containsspecialchar(char ** bucket){
      int i;
