@@ -24,7 +24,9 @@ char** parsePath(char * path);
 struct queue* allocate(struct queue *processes, int num);
 bool ifBackground(char** instr, int num);
 void redirect(char **args[]);
+bool containsspecialchar(char ** bucket);
 char * expandenv(char* env);
+void stillrunning(struct queue* processes, int processcount);
  
 int main() {
         char token[256];		/* holds instruction token*/
@@ -38,12 +40,13 @@ int main() {
         char* path;
         char ** pathtokens;
         pathtokens = parsePath(path);
-	int processcount = 1;
+	int processcount = 0;
 	
 	
 	gettimeofday(&start, NULL);
 
         while (1) {
+                stillrunning(processes,processcount);
                 char * tmp = (char *)malloc(100*sizeof(char));
                 memset(tmp, '\0', 100*sizeof(char));
                 printf("%s@%s::%s -> ",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name());
@@ -94,7 +97,8 @@ int main() {
                 
                 bucket[numI] = NULL;
 		
-		if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //CMD &
+		if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0) && (strcmp(bucket[0],"&")!=0) && !containsspecialchar(bucket)){ //CMD &
+                                    printf("made it to cmd &\n");
 			
 		}
 		else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
@@ -103,28 +107,58 @@ int main() {
 					printf("Error there is no command");
 				}
 				//behaves like CMD&
+				else{
+                                    printf("made it to & cmd &\n");
+                                   // if(pid = fork() == 0){
+			           //      execv(bucket[1],&bucket[1]);
+                                   //      exit(EXIT_FAILURE);
+                                   // }
+                                   // else{
+                                   //     processes = allocate(processes,processcount);
+                                   //     processcount++;
+                                   //     processes[processcount-1].pid = pid;
+                                   //     processes[processcount-1].position = 1;
+                                   //     processes[processcount-1].state = true;
+	                           //     char * tmp = (char *)malloc(256*sizeof(char));
+                                   //     strcpy(tmp,bucket[1]);
+                                   //     int i = 2;
+                                   //     while(bucket[i] != NULL){
+                                   //          strcat(tmp," ");
+                                   //          strcat(tmp,bucket[i]);
+                                   //     }
+                                   //     processes[processcount-1].cmd = tmp;
+                                   // }
+                                }
+                                
+
 			}
 			else{ //&cmd
 				bucket = &bucket[1];
 				numI = numI - 1;
+                                printf("made it to & cmd\n");
 			}
 		}
 		else if((bucket[numI-1] != NULL)&&(strcmp(bucket[numI-1],"&")==0)){
-			if(strcmp(bucket[numI-3],"<")){ //cmd < file&
+			if(strcmp(bucket[numI-3],"<")==0){ //cmd < file&
+                            printf("made it to cmd < file&\n");
 
 			}
-			else if(strcmp(bucket[numI-3],">")){ //cmd > file&
+			else if(strcmp(bucket[numI-3],">")==0){ //cmd > file&
+                            printf("made it to cmd > file&\n");
 
 			}
 			else{ // cmd1 | cmd2 &
 				//hardest implementation
 				int counter = 0;
 				bool bg = false;
-				for(counter = 0; counter < numI; counter+1){
-					if(strcmp(bucket[counter],"|")){
+				for(counter = 0; counter < numI; counter++){
+					if(strcmp(bucket[counter],"|")==0){
 						bg = true;
 					}
 				}
+                                if(bg){
+                                printf("made it to cmd | file&\n"); 
+                                }
 			}
 
 		}
@@ -510,4 +544,29 @@ void redirect(char **args[]) {
 
 char * expandenv(char* env){
      return getenv(env+1); 
+}
+void stillrunning(struct queue *processes, int processcount){
+    int i;
+    int w = 0;
+    int status;
+    printf("still running %d\n",processcount);
+    for(i = 0; i < processcount; i++){
+        if(processes[i].state == true){ /*check if process is running */
+            if(waitpid(processes[i].pid, &status, WNOHANG) == 0){        
+                printf("[%d] [%s]\n",processes[i].position,processes[i].cmd);
+                processes[i].state = false;
+            }
+        }
+    }
+}
+bool containsspecialchar(char ** bucket){
+     int i;
+     i = 0;
+     while(bucket[i]!=NULL){
+         if(strcmp(bucket[i],"|")==0 || strcmp(bucket[i],">")==0 || strcmp(bucket[i],"<")==0){
+             return true;
+         } 
+     i++;
+     }
+     return false;
 }
