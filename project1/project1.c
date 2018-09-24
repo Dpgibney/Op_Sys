@@ -44,135 +44,226 @@ int main() {
 	
 	gettimeofday(&start, NULL);
 
-        while (1) {
-                stillrunning(processes,processcount);
-                char * tmp = (char *)malloc(100*sizeof(char));
-                memset(tmp, '\0', 100*sizeof(char));
-                printf("%s@%s::%s -> ",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name());
+	while (1) {
+		stillrunning(processes,processcount);
+		char * tmp = (char *)malloc(100*sizeof(char));
+		memset(tmp, '\0', 100*sizeof(char));
+		printf("%s@%s::%s -> ",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name());
 
-                int numI;                /* number of tokens in an instruction*/
-                numI = 0;
- 
-                do {                            /* loop reads character sequences separated by whitespace*/
-                        //printf("path: %s %s %s \n",pathtokens[0],pathtokens[1],pathtokens[2]);
-                        scanf( "%s", token);
-                        int i;
-                        int start;
-                        start = 0;
+		int numI;                /* number of tokens in an instruction*/
+		numI = 0;
 
-                        for (i = 0; i < strlen(token); i++)
-                        {
-                                if (token[i] == '|' || token[i] == '>' || token[i] == '<' || token[i] == '&') 
-                                {
-                                        if (i-start > 0)
-                                        {
-                                                memcpy(temp, token + start, i - start);
-                                                temp[i-start] = '\0';
-                                                bucket = addToken(bucket, temp, numI);
-                                                numI++;
+		do {                            /* loop reads character sequences separated by whitespace*/
+			//printf("path: %s %s %s \n",pathtokens[0],pathtokens[1],pathtokens[2]);
+			scanf( "%s", token);
+			int i;
+			int start;
+			start = 0;
 
-                                        }
+			for (i = 0; i < strlen(token); i++)
+			{
+				if (token[i] == '|' || token[i] == '>' || token[i] == '<' || token[i] == '&') 
+				{
+					if (i-start > 0)
+					{
+						memcpy(temp, token + start, i - start);
+						temp[i-start] = '\0';
+						bucket = addToken(bucket, temp, numI);
+						numI++;
 
-                                        char specialChar[2];
-                                        specialChar[0] = token[i];
-                                        specialChar[1] = '\0';
-
-                                        bucket = addToken(bucket,specialChar,numI);
-                                        numI++;
-
-                                        start = i + 1;
-                                }
-                        }
-                        if (start < strlen(token))
-                        {
-                                memcpy(temp, token + start, strlen(token) - start);
-                                temp[i-start] = '\0';
-                                bucket = addToken(bucket, temp, numI);
-                                numI++;
-
-                        }
-
-                } while ('\n' != getchar());    /*until end of line is reached*/
-                
-                bucket[numI] = NULL;
-		
-		if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0) && (strcmp(bucket[0],"&")!=0) && !containsspecialchar(bucket)){ //CMD &
-                                    printf("made it to cmd &\n");
-			
-		}
-		else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
-			if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //&cmd&
-				if((strcmp(bucket[1],"&")==0)){
-					printf("Error there is no command");
-				}
-				//behaves like CMD&
-				else{
-                                    printf("made it to & cmd &\n");
-                                    if((pid = fork()) == 0){
-					 bucket[1] = addPath(bucket[1],pathtokens);
-                                         bucket[numI-1] = NULL;
-			                 execv(bucket[1],&bucket[1]);
-					printf("Error there is no command");
-                                         exit(EXIT_FAILURE);
-                                    }
-                                    printf("pid %d\n",pid);
-                                    processes = allocate(processes,processcount);
-                                    processcount++;
-                                    processes[processcount-1].pid = pid;
-                                    processes[processcount-1].position = 1;
-                                    processes[processcount-1].state = true;
-	                            char * tmp = (char *)malloc(256*sizeof(char));
-                                    strcpy(tmp,bucket[1]);
-                                    int i = 2;
-                                    while(bucket[i] != NULL){
-                                         strcat(tmp," ");
-                                         strcat(tmp,bucket[i]);
-                                         i++;
-                                    }
-                                    processes[processcount-1].cmd = tmp;
-                                    
-                                }
-                                
-
-			}
-			else{ //&cmd
-				bucket = &bucket[1];
-				numI = numI - 1;
-                                printf("made it to & cmd\n");
-			}
-		}
-		else if((bucket[numI-1] != NULL)&&(strcmp(bucket[numI-1],"&")==0)){
-			if(strcmp(bucket[numI-3],"<")==0){ //cmd < file&
-                            printf("made it to cmd < file&\n");
-
-			}
-			else if(strcmp(bucket[numI-3],">")==0){ //cmd > file&
-                            printf("made it to cmd > file&\n");
-
-			}
-			else{ // cmd1 | cmd2 &
-				//hardest implementation
-				int counter = 0;
-				bool bg = false;
-				for(counter = 0; counter < numI; counter++){
-					if(strcmp(bucket[counter],"|")==0){
-						bg = true;
 					}
-					counter = counter+1;
+
+					char specialChar[2];
+					specialChar[0] = token[i];
+					specialChar[1] = '\0';
+
+					bucket = addToken(bucket,specialChar,numI);
+					numI++;
+
+					start = i + 1;
 				}
-                                if(bg){
-                                printf("made it to cmd | file&\n"); 
-                                }
+			}
+			if (start < strlen(token))
+			{
+				memcpy(temp, token + start, strlen(token) - start);
+				temp[i-start] = '\0';
+				bucket = addToken(bucket, temp, numI);
+				numI++;
+
 			}
 
-		}
-		else{
-			if(ifBackground(bucket, numI)){
-				printf("Error: not a vaild input\n");
-			}
-		}
+		} while ('\n' != getchar());    /*until end of line is reached*/
 
-		if(ifBackground(bucket,numI)){}
+		bucket[numI] = NULL;
+		if(ifBackground(bucket, numI)){
+				if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0) && (strcmp(bucket[0],"&")!=0) && !containsspecialchar(bucket)){ //CMD &
+				if(strcmp(bucket[0],"&")==0){
+				printf("Error there is no command");
+				}
+				else{
+				printf("made it to cmd &\n");
+				if((pid = fork())==0){
+				bucket[0] = addPath(bucket[0],pathtokens);
+				bucket[numI-1] = NULL;
+				execv(bucket[0],&bucket[0]);
+				printf("Error there is no command");
+				exit(EXIT_FAILURE);
+				}
+				printf("pid %d\n", pid);
+				processes = allocate(processes, processcount);
+				processcount++;
+				processes = allocate(processes, processcount);
+				processes[processcount-1].pid = pid;
+				processes[processcount-1].position = 1;
+				processes[processcount-1].state = true;
+				char * tmp = (char *)malloc(256*sizeof(char));
+				strcpy(tmp, bucket[1]);
+				int i = 2;
+				while(bucket[i] != NULL){
+					strcat(tmp, " ");
+					strcat(tmp, bucket[i]);
+					i++;
+				}
+				processes[processcount-1].cmd = tmp;
+				}
+				}
+				else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
+					if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //&cmd&
+						if((strcmp(bucket[1],"&")==0)){
+							printf("Error there is no command");
+						}
+						//behaves like CMD&
+						else{
+							printf("made it to & cmd &\n");
+							if((pid = fork()) == 0){
+								bucket[1] = addPath(bucket[1],pathtokens);
+								bucket[numI-1] = NULL;
+								execv(bucket[1],&bucket[1]);
+								printf("Error there is no command");
+								exit(EXIT_FAILURE);
+							}
+							printf("pid %d\n",pid);
+							processes = allocate(processes,processcount);
+							processcount++;
+							processes[processcount-1].pid = pid;
+							processes[processcount-1].position = 1;
+							processes[processcount-1].state = true;
+							char * tmp = (char *)malloc(256*sizeof(char));
+							strcpy(tmp,bucket[1]);
+							int i = 2;
+							while(bucket[i] != NULL){
+								strcat(tmp," ");
+								strcat(tmp,bucket[i]);
+								i++;
+							}
+							processes[processcount-1].cmd = tmp;
+
+						}
+
+
+					}
+					else{ //&cmd
+						bucket = &bucket[1];
+						numI = numI - 1;
+						printf("made it to & cmd\n");
+					}
+				}
+				else if((bucket[numI-1] != NULL)&&(strcmp(bucket[numI-1],"&")==0)){
+					if(strcmp(bucket[numI-3],">")==0){ //cmd > file&
+						if(strcmp(bucket[0],">")==0){
+							printf("made it to cmd > file&\n");
+						}
+						else{
+							bucket[numI-3] = NULL;
+							if((pid = fork())==0){
+								int outfile;
+								printf("file to open %s\n", bucket[numI-2]);
+								if((outfile = open(bucket[numI-2],  O_WRONLY | O_CREAT | O_TRUNC,
+                                                                        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
+									fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+									return(EXIT_FAILURE);
+								}
+								dup2(outfile, 1);
+								close(outfile);
+                                                                bucket[0] = addPath(bucket[0],pathtokens);
+                                                                execv(bucket[0],bucket);
+								fprintf(stderr, "couldnt execute %s\n", strerror(errno));
+                                                                exit(EXIT_FAILURE);
+							}
+							printf("pid %d\n", pid);
+							processes = allocate(processes,processcount);
+							processcount++;
+							processes[processcount-1].pid = pid;
+							processes[processcount-1].position = 1;
+							processes[processcount-1].state = true;
+							char * tmp = (char *)malloc(256*sizeof(char));
+							strcpy(tmp, bucket[0]);
+							int i = 1;
+							while(bucket[i] != NULL){
+								strcat(tmp," ");
+								strcat(tmp, bucket[i]);
+								i++;
+							}
+							processes[processcount-1].cmd = tmp;
+						}
+
+					}
+					else if(strcmp(bucket[numI-3],"<")==0){ //cmd < file&
+							bucket[numI-3] = NULL;
+                                                        if((pid = fork())==0){
+                                                        	int infile;
+	                                                        printf("file to open %s\n", bucket[numI-2]);
+         	                                               	if((infile = open(bucket[numI-2],  O_RDONLY , S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
+                                                                	fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+                                                                	return(EXIT_FAILURE);
+                                                                }
+                                                                dup2(infile, STDIN_FILENO);
+                                                                close(infile);
+                                                                bucket[0] = addPath(bucket[0],pathtokens);
+                                                                execv(bucket[0],bucket);
+                                                                fprintf(stderr, "couldnt execute %s\n", strerror(errno));
+                                                                exit(EXIT_FAILURE);
+        
+                                                        }
+                                                        printf("pid %d\n", pid);
+                                                        processes = allocate(processes,processcount);
+                                                        processcount++;
+                                                        processes[processcount-1].pid = pid;
+                                                        processes[processcount-1].position = 1;
+                                                        processes[processcount-1].state = true;
+                                                        char * tmp = (char *)malloc(256*sizeof(char));
+                                                        strcpy(tmp, bucket[0]);
+                                                        int i = 1;
+                                                        while(bucket[i] != NULL){
+                                                                strcat(tmp," ");
+                                                                strcat(tmp, bucket[i]);
+                                                                i++;
+                                                        }
+                                                        processes[processcount-1].cmd = tmp;
+					}
+					else{ // cmd1 | cmd2 &
+						//hardest implementation
+						int counter = 0;
+						bool bg = false;
+						for(counter = 0; counter < numI; counter++){
+							if(strcmp(bucket[counter],"|")==0){
+								bg = true;
+							}
+							counter = counter+1;
+						}
+						if(bg){
+							printf("made it to cmd | file&\n"); 
+						}
+					}
+
+				}
+				else{
+					if(ifBackground(bucket, numI)){
+						printf("Error: not a vaild input\n");
+					}
+				}
+
+		}
 		else{
 			if(strcmp(bucket[0], "echo") == 0){
 				if(bucket[1] != NULL){
