@@ -1,4 +1,4 @@
-#include <stdio.h> 
+#include <stdio.h>
 #include <dirent.h> 
 #include <string.h> 
 #include <stdlib.h>
@@ -10,13 +10,23 @@
 #include <sys/time.h>
 #include <stdbool.h>
 #include <errno.h>
+struct queue{
+	int position;
+	int pid;
+	bool state;
+	char *cmd;
+};
 
 char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
 char** parsePath(char * path);
 void redirect(char *args[]);
+struct queue* allocate(struct queue *processes, int num);
+bool ifBackground(char** instr, int num);
+bool containsspecialchar(char ** bucket);
 char * expandenv(char* env);
+void stillrunning(struct queue* processes, int processcount);
  
 int main() {
         char token[256];		/* holds instruction token*/
@@ -26,14 +36,17 @@ int main() {
         int w;
         int status;
    	struct timeval start, finish;
+	struct queue *processes;
         char* path;
         char ** pathtokens;
         pathtokens = parsePath(path);
+	int processcount = 0;
+	
 	
 	gettimeofday(&start, NULL);
 
-
         while (1) {
+                stillrunning(processes,processcount);
                 char * tmp = (char *)malloc(100*sizeof(char));
                 memset(tmp, '\0', 100*sizeof(char));
                 printf("%s@%s::%s -> ",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name());
@@ -83,177 +96,235 @@ int main() {
                 } while ('\n' != getchar());    /*until end of line is reached*/
                 
                 bucket[numI] = NULL;
-              
-		if(strcmp(bucket[0], "echo") == 0){
-			if(bucket[1] != NULL){
-				char tempChar[1];
-				char *tempS = bucket[1];
-				char * ePath;
-				memcpy(tempChar, bucket[1],1);
-				if(tempChar[0] ==  '$'){
-					strcpy(tempS,tempS+1);
-					if((ePath = getenv(tempS))){
-						printf("%s\n",ePath);
-					}
-					else{
-						printf("The path entered is not an envionmental variable\n");
-					}
+		
+		if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0) && (strcmp(bucket[0],"&")!=0) && !containsspecialchar(bucket)){ //CMD &
+                                    printf("made it to cmd &\n");
+			
+		}
+		else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
+			if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //&cmd&
+				if((strcmp(bucket[1],"&")==0)){
+					printf("Error there is no command");
 				}
+				//behaves like CMD&
 				else{
-					printf(bucket[1]);
-					printf("\n");
-				}
-			}
-			else{
-				printf("Nothing to check if it is an enviornmental variable\n");
-			}
-		}
-		else if(strcmp(bucket[0], "exit")==0){
-			break;
-		}
-		else if(strcmp(bucket[0], "cd")==0){
-			if(bucket[1] != NULL){
-				if(bucket[2] == NULL){
-					if(chdir(bucket[1])!= -1){
-						chdir(bucket[1]);
-					}
-					else{
-						printf("Error target is not a directory\n");
-					}
-				}
-				else{
-					printf("Error more than one argument present\n");
-				}
-			}
-		}
-		else if(strcmp(bucket[0], "io")==0){
-			FILE *fp;
-
-			char file_name[50];
-
-			if ((pid = fork()) == 0){
-                                int i = 0;
-                                while(bucket[i]!=NULL){
-                                    if(bucket[i][0]=='$'){
-                                        bucket[i] = expandenv(bucket[i]);
+                                    printf("made it to & cmd &\n");
+                                    if((pid = fork()) == 0){
+					 bucket[1] = addPath(bucket[1],pathtokens);
+                                         bucket[numI-1] = NULL;
+			                 execv(bucket[1],&bucket[1]);
+					printf("Error there is no command");
+                                         exit(EXIT_FAILURE);
                                     }
-                                i++;
+                                    printf("pid %d\n",pid);
+                                    processes = allocate(processes,processcount);
+                                    processcount++;
+                                    processes[processcount-1].pid = pid;
+                                    processes[processcount-1].position = 1;
+                                    processes[processcount-1].state = true;
+	                            char * tmp = (char *)malloc(256*sizeof(char));
+                                    strcpy(tmp,bucket[1]);
+                                    int i = 2;
+                                    while(bucket[i] != NULL){
+                                         strcat(tmp," ");
+                                         strcat(tmp,bucket[i]);
+                                         i++;
+                                    }
+                                    processes[processcount-1].cmd = tmp;
+                                    
                                 }
-				bucket[1] = addPath(bucket[1],pathtokens);
-				//printf("%s\n",bucket[0]);                        
-				//execute program av[0] with arguments av[0]... replacing this program
-				//printTokens(new_bucket, numI-1);
-				execv(bucket[1],&bucket[1]);
-				//execv(bucket[1],&bucket[1]);
-				/*fprintf(stderr, "can't execute %s\n", av[0]);*/
-				exit(EXIT_FAILURE);
+                                
+
 			}
-			//sprintf(file_name,"/proc/%d/io",pid);
-			//char ch;
-			//fp = fopen(file_name,"r");
-			//while((ch = fgetc(fp)) != EOF){
-			//    printf("%c",ch);
-			//}
-			//if(fp!=NULL){
-			//printf("%s\n",fp);
-			//}
-			//wait(&pid);
-			getpgid(pid);
-			int rchar = 0;
-			int wchar = 0;
-			int syscr = 0;
-			int syscw = 0;
-			int read_bytes = 0;
-			int write_bytes = 0;
-			int cancelled = 0;
-			while(true){
-				char line[100];
-				if(waitpid(pid, &status, WNOHANG) == 0){
-					sprintf(file_name,"/proc/%d/io",pid);
-					fp = fopen(file_name,"r");
-					if(fp!=NULL){
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&rchar);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&wchar);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&syscr);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&syscw);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&read_bytes);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&write_bytes);
-						fgets(line,sizeof(line),fp);
-						sscanf(line,"%*s %d",&cancelled);
-						fclose(fp);
+			else{ //&cmd
+				bucket = &bucket[1];
+				numI = numI - 1;
+                                printf("made it to & cmd\n");
+			}
+		}
+		else if((bucket[numI-1] != NULL)&&(strcmp(bucket[numI-1],"&")==0)){
+			if(strcmp(bucket[numI-3],"<")==0){ //cmd < file&
+                            printf("made it to cmd < file&\n");
+
+			}
+			else if(strcmp(bucket[numI-3],">")==0){ //cmd > file&
+                            printf("made it to cmd > file&\n");
+
+			}
+			else{ // cmd1 | cmd2 &
+				//hardest implementation
+				int counter = 0;
+				bool bg = false;
+				for(counter = 0; counter < numI; counter++){
+					if(strcmp(bucket[counter],"|")==0){
+						bg = true;
 					}
-				}else{
-					printf("rchar: %d\n",rchar);
-					printf("wGchar: %d\n",wchar);
-					printf("syscr: %d\n",syscr);
-					printf("syscw: %d\n",syscw);
-					printf("read_bytes: %d\n",read_bytes);
-					printf("write_bytes: %d\n",write_bytes);
-					printf("cancelled: %d\n",cancelled);
-					break;
+				}
+                                if(bg){
+                                printf("made it to cmd | file&\n"); 
+                                }
+			}
+
+		}
+		printf("%d",numI);
+		if(ifBackground(bucket,numI)){printf("DASD");}
+		else{
+			if(strcmp(bucket[0], "echo") == 0){
+				if(bucket[1] != NULL){
+					char tempChar[1];
+					char *tempS = bucket[1];
+					char * ePath;
+					memcpy(tempChar, bucket[1],1);
+					if(tempChar[0] ==  '$'){
+						strcpy(tempS,tempS+1);
+						if((ePath = getenv(tempS))){
+							printf("%s\n",ePath);
+						}
+						else{
+							printf("The path entered is not an envionmental variable\n");
+						}
+					}
+					else{
+						printf(bucket[1]);
+						printf("\n");
+					}
+				}
+				else{
+					printf("Nothing to check if it is an enviornmental variable\n");
 				}
 			}
+			else if(strcmp(bucket[0], "exit")==0){
+				break;
+			}
+			else if(strcmp(bucket[0], "cd")==0){
+				if(bucket[1] != NULL){
+					if(bucket[2] == NULL){
+						if(chdir(bucket[1])!= -1){
+							continue;
+						}
+						else{
+							printf("Error target is not a directory\n");
+						}
+					}
+					else{
+						printf("Error more than one argument present\n");
+					}
+				}
+			}
+			else if(strcmp(bucket[0], "io")==0){
+				FILE *fp;
+				char file_name[50];
 
-			//while ((w = wait(&status)) != pid && w != -1){
-			//while((ch = fgetc(fp)) != EOF){
-			//    printf("%c\n",ch);
-			//}
-			//     continue;          
-			//}         
-		}
+				if ((pid = fork()) == 0){
+					bucket[1] = addPath(bucket[1],pathtokens);
+					//printf("%s\n",bucket[0]);                        
+					//execute program av[0] with arguments av[0]... replacing this program
+					//printTokens(new_bucket, numI-1);
+					execv(bucket[1],&bucket[1]);
+					//execv(bucket[1],&bucket[1]);
+					/*fprintf(stderr, "can't execute %s\n", av[0]);*/
+					exit(EXIT_FAILURE);
+				}
+                                    printf("pid %d\n",pid);
+				//sprintf(file_name,"/proc/%d/io",pid);
+				//char ch;
+				//fp = fopen(file_name,"r");
+				//while((ch = fgetc(fp)) != EOF){
+				//    printf("%c",ch);
+				//}
+				//if(fp!=NULL){
+				//printf("%s\n",fp);
+				//}
+				//wait(&pid);
+				getpgid(pid);
+				int rchar = 0;
+				int wchar = 0;
+				int syscr = 0;
+				int syscw = 0;
+				int read_bytes = 0;
+				int write_bytes = 0;
+				int cancelled = 0;
+				while(true){
+					char line[100];
+					if(waitpid(pid, &status, WNOHANG) == 0){
+						sprintf(file_name,"/proc/%d/io",pid);
+						fp = fopen(file_name,"r");
+						if(fp!=NULL){
+							fgets(line,sizeof(line),fp);
+							sscanf(line,"%*s %d",&rchar);
+							fgets(line,sizeof(line),fp);
+							sscanf(line,"%*s %d",&wchar);
+							fgets(line,sizeof(line),fp);
+							sscanf(line,"%*s %d",&syscr);
+							fgets(line,sizeof(line),fp);
+							sscanf(line,"%*s %d",&syscw);
+							fgets(line,sizeof(line),fp);
+							sscanf(line,"%*s %d",&read_bytes);
+							fgets(line,sizeof(line),fp);
+							sscanf(line,"%*s %d",&write_bytes);
+							fgets(line,sizeof(line),fp);
+							sscanf(line,"%*s %d",&cancelled);
+							fclose(fp);
+						}
+					}else{
+						printf("rchar: %d\n",rchar);
+						printf("wchar: %d\n",wchar);
+						printf("syscr: %d\n",syscr);
+						printf("syscw: %d\n",syscw);
+						printf("read_bytes: %d\n",read_bytes);
+						printf("write_bytes: %d\n",write_bytes);
+						printf("cancelled: %d\n",cancelled);
+						break;
+					}
+				}
 
-                else if ((pid = fork()) == 0)
-                {
-                        /* this is the forked child process that is a copy of the running program*/
-                        /*if(newin == false){
-                        dup2(tty, 0);  // force stdin from tty
-                        }else{
-                        dup2(fdin, 0);
-                        close(fdin);
-                        }
-                        if(newout == false){
-                        dup2(tty, 1); // force stdout to tty
-                        }else{
-                        dup2(fdout, 1);
-                        close(fdout);
-                        }
-                        dup2(fdout, 2); // force stderr to tty
-                        close(tty);
-                        //last argument must be NULL for execvp()
-                        av[ac] = NULL; */
+				//while ((w = wait(&status)) != pid && w != -1){
+				//while((ch = fgetc(fp)) != EOF){
+				//    printf("%c\n",ch);
+				//}
+				//     continue;          
+				//}         
+			}
+
+                	else if ((pid = fork()) == 0)
+               		{
+                        	/* this is the forked child process that is a copy of the running program*/
+                        	/*if(newin == false){
+                       		dup2(tty, 0);  // force stdin from tty
+                        	}else{
+                        	dup2(fdin, 0);
+                        	close(fdin);
+                        	}
+                        	if(newout == false){
+                       		dup2(tty, 1); // force stdout to tty
+                        	}else{
+                       		dup2(fdout, 1);
+                        	close(fdout);
+                        	}
+                        	dup2(fdout, 2); // force stderr to tty
+                        	close(tty);
+                        	//last argument must be NULL for execvp()
+                        	av[ac] = NULL; */
                
-                        //printTokens(bucket, numI);
-                        bucket[0] = addPath(bucket[0],pathtokens);
-                        int i = 0;
-                        while(bucket[i]!=NULL){
-                            if(bucket[i][0]=='$'){
-                                bucket[i] = expandenv(bucket[i]);
-                            }
-                        i++;
-                        }
-                   
-                        printTokens(bucket, numI);
-                        //printf("%s\n",bucket[0]);                        
-			//execute program av[0] with arguments av[0]... replacing this program
-                        execv(bucket[0],bucket);
-                        /*fprintf(stderr, "can't execute %s\n", av[0]);*/
-                        exit(EXIT_FAILURE);
-                        }
-                         while ((w = wait(&status)) != pid && w != -1){
-                             continue;          
-                        }
-                        //if(pid != 0){
-                        //    int childstatus;
-                        //    waitpid(pid,&childstatus,WNOHANG);
-                        //} 
-
+                        	//printTokens(bucket, numI);
+                       		bucket[0] = addPath(bucket[0],pathtokens);
+                        	//printTokens(bucket, numI);
+                        	//printf("%s\n",bucket[0]);                        
+				//execute program av[0] with arguments av[0]... replacing this program
+                        	execv(bucket[0],bucket);
+                        	/*fprintf(stderr, "can't execute %s\n", av[0]);*/
+                        	exit(EXIT_FAILURE);
+                        	}
+                         	while ((w = wait(&status)) != pid && w != -1){
+                             	continue;          
+                        	}
+                        	//if(pid != 0){
+                        	//    int childstatus;
+                        	//    waitpid(pid,&childstatus,WNOHANG);
+                        	//}
+                       	} 
         }  /*until "exit" is read in*/
+	
         free(bucket);	/*free dynamic memory*/
         printf("Exiting...\n");
 	gettimeofday(&finish, NULL);
@@ -376,8 +447,7 @@ char * addPath(char * instr, char ** path){ int i;
                        closedir(d);
                        return new_path;
                     }
-                }
-            }
+                } }
             i++;
             closedir(d);
        }
@@ -413,6 +483,23 @@ char** parsePath(char* path){
         return pathtokens;
 }
 
+struct queue* allocate(struct queue *processes, int num){
+	struct queue *process = malloc(num* sizeof(processes));
+	process = realloc(processes, (num+1)* sizeof(processes));
+	free(processes);
+	return process;
+}
+bool ifBackground(char** instr, int num){
+	int counter = 0;
+	while(counter < num){
+		if(strcmp(instr[counter],"&")==0){
+			return true;
+			printf("HERE");
+		}
+		counter=counter+1;
+	}
+	return false;
+}
 void redirect(char *args[]) {
 	pid_t pid;
 	int infile, outfile;
@@ -461,7 +548,38 @@ void redirect(char *args[]) {
 		//args[0]= addPath(args[0], pathtoken);
 		//execv(args[0], args); 
 	}		
+
 	
 char * expandenv(char* env){
      return getenv(env+1); 
+}
+void stillrunning(struct queue *processes, int processcount){
+    int i;
+    int j = 0;
+    int w = 0;
+    int status;
+    int pid = 0;
+    for(i = 0; i < processcount; i++){
+        printf("pid %d, cmd %s state %d\n",processes[i].pid, processes[i].cmd, processes[i].state);
+        if(processes[i].state == true){ /*check if process is running */
+            if(waitpid(processes[i].pid, &status, WNOHANG) != 0){        
+                printf("[%d] [%s]\n",processes[i].position,processes[i].cmd);
+                processes[i].state = false;
+            }else{
+                j++; //TODO this needs to be removed lated
+            }
+        }
+    }
+    printf("still running %d\n",j);
+}
+bool containsspecialchar(char ** bucket){
+     int i;
+     i = 0;
+     while(bucket[i]!=NULL){
+         if(strcmp(bucket[i],"|")==0 || strcmp(bucket[i],">")==0 || strcmp(bucket[i],"<")==0){
+             return true;
+         } 
+     i++;
+     }
+     return false;
 }
