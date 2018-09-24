@@ -500,55 +500,67 @@ bool ifBackground(char** instr, int num){
 	}
 	return false;
 }
-void redirect(char *args[]) {
+
+void redirect(char *args[])
+{
 	pid_t pid;
 	int infile, outfile;
 	int i = 0;
 	char ** pathtoken;
-	if ((pid = fork()) == -1) {
+	if ((pid = fork()) == -1) 
+	{
 		printf("Error: Child process could not be created\n");
 		return (EXIT_FAILURE);
 	}
 
-	if (pid == 0) { 
-	//Working in child process
-		if(strcmp(args[i], ">") == 0) { //check for ">") { 
-			// command is outputting to file (CMD > FILE)
-			if(args[i+1]== NULL){
-				printf("Error: Missing file name for redirect\n");
-				return EXIT_FAILURE;
-			}
-			//args[i] = NULL;
-			outfile = open(args[i+1], O_WRONLY | O_TRUNC | O_CREAT);
-			if ((outfile = open(args[i+1], O_WRONLY | O_CREAT | O_TRUNC)) == -1) {
-				fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+	if (pid == 0) 
+	{ 
+		//Working in child process
+		while(args[i]!= NULL) 
+		{
+			if(strcmp(args[i], ">") == 0) //check for ">"  
+			{
+				// command is outputting to file (CMD > FILE)
+				if(args[i+1]== NULL)
+				{
+					printf("Error: Missing file name for redirect\n");
+					return EXIT_FAILURE;
+				}
+			args[i] = NULL;
+			if ((outfile = open(args[i+1], O_WRONLY | O_CREAT | O_TRUNC, 0766)) == -1) 
+			{
+				fprintf(stderr, "error creating file: %s\n", strerror(errno));
 				return (EXIT_FAILURE);
 			}
 			dup2(outfile, STDOUT_FILENO);
 			close(outfile);
-		}
-
-		}
-		else if(strcmp(args[i], "<") == 0) { 
-		//file is inputting to command (CMD < FILE)
-			if(args[i+1]== NULL){ printf("Error: Missing file name for redirect\n");
-				return EXIT_FAILURE;
 			}
-			//args[i] = NULL;
-			infile = open(args[i+1], O_RDONLY, 0766);
-			if ((infile = open(args[i+1], O_RDONLY, 0766)) == -1) {
-				fprintf(stderr, "shell: no such file or directory: %s\n", strerror(errno));
+
+			else if(strcmp(args[i], "<") == 0) 
+			{ 
+				//file is inputting to command (CMD < FILE)
+				if(args[i+1]== NULL)
+				{
+					printf("Error: Missing file name for redirect\n");
+					return EXIT_FAILURE;
+				}
+				args[i] = NULL;
+				if ((infile = open(args[i+1], O_RDONLY, 0766)) == -1) 
+				{
+					fprintf(stderr, "no such file or directory: %s\n", strerror(errno));
+					return (EXIT_FAILURE);
+				}
+				dup2(infile, STDIN_FILENO);
+				close(infile);
 				return (EXIT_FAILURE);
 			}
-			dup2(infile, STDIN_FILENO);
-			close(infile);
-			return (EXIT_FAILURE);
+
+			args[0]= addPath(args[0], pathtoken);
+			execv(args[0], args); 
+			i++;
 		}
-
-		//args[0]= addPath(args[0], pathtoken);
-		//execv(args[0], args); 
 	}		
-
+}
 	
 char * expandenv(char* env){
      return getenv(env+1); 
