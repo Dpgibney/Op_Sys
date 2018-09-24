@@ -24,7 +24,9 @@ char** parsePath(char * path);
 struct queue* allocate(struct queue *processes, int num);
 bool ifBackground(char** instr, int num);
 void redirect(char **args[]);
+bool containsspecialchar(char ** bucket);
 char * expandenv(char* env);
+void stillrunning(struct queue* processes, int processcount);
  
 int main() {
         char token[256];		/* holds instruction token*/
@@ -38,12 +40,12 @@ int main() {
         char* path;
         char ** pathtokens;
         pathtokens = parsePath(path);
-	int processcount = 1;
-	int bgs = 0;	
+	int processcount = 0;
 	
 	gettimeofday(&start, NULL);
 
         while (1) {
+                stillrunning(processes,processcount);
                 char * tmp = (char *)malloc(100*sizeof(char));
                 memset(tmp, '\0', 100*sizeof(char));
                 printf("%s@%s::%s -> ",getenv("USER"),getenv("HOSTNAME"),get_current_dir_name());
@@ -94,29 +96,9 @@ int main() {
                 
                 bucket[numI] = NULL;
 		
-		if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //CMD &
-			/*bgs = bgs + 1;
-			if((pid = fork())==0){
-				bucket[0] = addPath(bucket[1], pathtokens);
-				execv(bucket[0],&bucket[0]);
-				exit(EXIT_FAILURE);
-			}	
-			getpgid(pid);
-			while(true){
-				if(waitpid(pid, &status, WNOHANG)==0){
-					processes = allocate(processes, processcount);
-                        		processes[bgs-1].position = bgs - 1;
-                       			processes[bgs-1].pid = pid;
-					processes[bgs-1].state = true;
-					
-				}
-				else{
-					printf("[%d] [%d]\n", bgs, pid);
-					break;
-				}
-			}
-			bgs= bgs - 1;
-			printf("HERE");*/
+		if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0) && (strcmp(bucket[0],"&")!=0) && !containsspecialchar(bucket)){ //CMD &
+                                    printf("made it to cmd &\n");
+			
 		}
 		else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
 			if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //&cmd&
@@ -124,29 +106,63 @@ int main() {
 					printf("Error there is no command");
 				}
 				//behaves like CMD&
+				else{
+                                    printf("made it to & cmd &\n");
+                                    if((pid = fork()) == 0){
+					 bucket[1] = addPath(bucket[1],pathtokens);
+                                         bucket[numI-1] = NULL;
+			                 execv(bucket[1],&bucket[1]);
+					printf("Error there is no command");
+                                         exit(EXIT_FAILURE);
+                                    }
+                                    printf("pid %d\n",pid);
+                                    processes = allocate(processes,processcount);
+                                    processcount++;
+                                    processes[processcount-1].pid = pid;
+                                    processes[processcount-1].position = 1;
+                                    processes[processcount-1].state = true;
+	                            char * tmp = (char *)malloc(256*sizeof(char));
+                                    strcpy(tmp,bucket[1]);
+                                    int i = 2;
+                                    while(bucket[i] != NULL){
+                                         strcat(tmp," ");
+                                         strcat(tmp,bucket[i]);
+                                         i++;
+                                    }
+                                    processes[processcount-1].cmd = tmp;
+                                    
+                                }
+                                
+
 			}
 			else{ //&cmd
 				bucket = &bucket[1];
 				numI = numI - 1;
+                                printf("made it to & cmd\n");
 			}
 		}
 		else if((bucket[numI-1] != NULL)&&(strcmp(bucket[numI-1],"&")==0)){
-			if(strcmp(bucket[numI-3],"<")){ //cmd < file&
+			if(strcmp(bucket[numI-3],"<")==0){ //cmd < file&
+                            printf("made it to cmd < file&\n");
 
 			}
-			else if(strcmp(bucket[numI-3],">")){ //cmd > file&
+			else if(strcmp(bucket[numI-3],">")==0){ //cmd > file&
+                            printf("made it to cmd > file&\n");
 
 			}
 			else{ // cmd1 | cmd2 &
 				//hardest implementation
 				int counter = 0;
 				bool bg = false;
-				while(counter < numI){
+				for(counter = 0; counter < numI; counter++){
 					if(strcmp(bucket[counter],"|")==0){
 						bg = true;
 					}
 					counter = counter+1;
 				}
+                                if(bg){
+                                printf("made it to cmd | file&\n"); 
+                                }
 			}
 
 		}
@@ -189,7 +205,7 @@ int main() {
 				if(bucket[1] != NULL){
 					if(bucket[2] == NULL){
 						if(chdir(bucket[1])!= -1){
-							chdir(bucket[1]);
+							continue;
 						}
 						else{
 							printf("Error target is not a directory\n");
@@ -214,6 +230,7 @@ int main() {
 					/*fprintf(stderr, "can't execute %s\n", av[0]);*/
 					exit(EXIT_FAILURE);
 				}
+                                    printf("pid %d\n",pid);
 				//sprintf(file_name,"/proc/%d/io",pid);
 				//char ch;
 				//fp = fopen(file_name,"r");
@@ -537,4 +554,34 @@ void redirect(char **args[]) {
 
 char * expandenv(char* env){
      return getenv(env+1); 
+}
+void stillrunning(struct queue *processes, int processcount){
+    int i;
+    int j = 0;
+    int w = 0;
+    int status;
+    int pid = 0;
+    for(i = 0; i < processcount; i++){
+        printf("pid %d, cmd %s state %d\n",processes[i].pid, processes[i].cmd, processes[i].state);
+        if(processes[i].state == true){ /*check if process is running */
+            if(waitpid(processes[i].pid, &status, WNOHANG) != 0){        
+                printf("[%d] [%s]\n",processes[i].position,processes[i].cmd);
+                processes[i].state = false;
+            }else{
+                j++; //TODO this needs to be removed lated
+            }
+        }
+    }
+    printf("still running %d\n",j);
+}
+bool containsspecialchar(char ** bucket){
+     int i;
+     i = 0;
+     while(bucket[i]!=NULL){
+         if(strcmp(bucket[i],"|")==0 || strcmp(bucket[i],">")==0 || strcmp(bucket[i],"<")==0){
+             return true;
+         } 
+     i++;
+     }
+     return false;
 }
