@@ -162,7 +162,7 @@ int main() {
 				if(bucket[1] != NULL){
 					if(bucket[2] == NULL){
 						if(chdir(bucket[1])!= -1){
-							chdir(bucket[1]);
+							continue;
 						}
 						else{
 							printf("Error target is not a directory\n");
