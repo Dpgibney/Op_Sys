@@ -20,10 +20,15 @@ $> make test
 
 Known bugs:
 	-If too many background processes are entered there is an error in free() within addToken() and main().
-
+	-
 
 To do:
 	-CMD1 | CMD2 & not completed.
+	-~ doesnt always expand.
+	-Output isn't working properly.
+	-piping isn't working.
+	-free memory.
+	-exit might happen if background processes are still going. 
 
 Additional comments:
 
