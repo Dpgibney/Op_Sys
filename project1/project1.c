@@ -28,7 +28,8 @@ bool ifBackground(char** instr, int num);
 bool containsspecialchar(char ** bucket);
 char * expandenv(char* env);
 void stillrunning(struct queue* processes, int processcount);
- 
+void multipiping(char *bucket[]);
+
 int main() {
         char token[256];		/* holds instruction token*/
         char ** bucket;			/* array that holds all instruction tokens*/
@@ -265,6 +266,11 @@ int main() {
 
 		}
 		else{
+			
+
+
+
+			
 			if(strcmp(bucket[0], "echo") == 0){
 				if(bucket[1] != NULL){
 					char tempChar[1];
@@ -662,7 +668,7 @@ int i = 0;
 	return false;
 }
 
-/*
+
 void multipiping(char *bucket[]){
 int fd[2]; //position 0 handles output, position 1 handles input
 int fd2[2];
@@ -672,10 +678,12 @@ int num_commands = 0;
 char *command[256];
 pid_t pid;
 int i, j, k, l = 0;
+int end = 0;
+int err = -1;
 
-while[bucket[l] != NULL){ 
+while(bucket[l] != NULL){ 
 	//calculate the number of commands separated by '|'
-	if (strcmp(bucket[l],"|" == 0){
+	if (strcmp (bucket[l],"|") == 0){
 		num_commands++;
 	}
 	l++;
@@ -685,20 +693,20 @@ num_commands++;
 //Main Loop, for each command between '|' pipes will be configured and stdin/out will be replaced.
 while (bucket[j] != NULL && end != 1){
 	k = 0;
-	while (strcmp(bucket{j], "|") != 0){
+	while (strcmp(bucket[j], "|") != 0){
 		//auxillary array of pointers stores commands
 		command[k]= bucket[j];
 		j++;
-		if (args[j] == NULL){
+		if (bucket[j] == NULL){
 			// end used to keep program from renetering loop when arguments done
 			end = 1;
 			k++;
 			break;
 		}
-		k++
+		k++;
 	}
 	//last position of command will be NULL to indicate end when passed to exec
-	command[k] = NULL:
+	command[k] = NULL;
 	j++;
 	//Set different descriptors for pipes inputs and output, to connect commands
 	if (i%2 != 0){
@@ -708,17 +716,85 @@ while (bucket[j] != NULL && end != 1){
 	}
 
 	if ((pid = fork()) == -1){
-		if (i !- num_commands -1){
+		if (i != num_commands -1){
 			if (i % 2 != 0){
 				close(fd[1]); // for odd i
+			}else{
+				close(fd2[1]); //for even i
 			}
 		printf("Error: Child process could not be created\n");
 		return (EXIT_FAILURE);
+		}
+	}
+	if (pid == 0){
+			//first command
+			if (i == 0){
+				dup2(fd[1], STDOUT_FILENO);
+			}
+			//if this is the last command, if its odd or even stdinput will be replaced
+			//output is untouched because output wants to be seen in terminal
+
+			else if (i == num_commands -1){
+				if (num_commands % 2 != 0){
+				 //for odd number of commands
+					dup2(fd[0], STDIN_FILENO);
+				}
+				else{ 
+				//for even number of commands
+					dup2(fd2[0], STDIN_FILENO);
+				}
+			//if we are in a command in the middle then 2 pipes must be used (input/output)
+			//position is important in order to chooose the file descriptor
+		}else{ 
+			if(i%2 !=0){
+				dup2(fd2[0], STDIN_FILENO);
+				dup2(fd[1], STDOUT_FILENO);
+			}else{ 
+			//for even i
+				dup2(fd[0], STDIN_FILENO);
+				dup2(fd2[1], STDOUT_FILENO);
+			}
+		}
+		
+		if (execv(command[0], command)==err){
+			kill(getpid(), SIGTERM);
+
+		}
 	}
 
+//closing file descriptors on parent
+		
+		if (i == 0){
+			close(fd2[i]);
+		}
+		else if(i == num_commands -1){
+			if (num_commands % 2 != 0){
+				close(fd[0]);
+			}else{
+				close(fd2[0]);
+			}
+		}else{
+			if (i % 2 != 0){
+				close (fd2[0]);
+				close (fd[1]);
+		
+			}else{
+				close(fd[0]);
+				close(fd2[1]);
+			}
+		}
+
+		waitpid(pid,NULL,0);
+		i++;
+	
+	}
 }
 
-*/	
+
+
+	
+
+	
 
 	
 char * expandenv(char* env){
