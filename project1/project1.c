@@ -292,7 +292,7 @@ int main() {
 		
 			else if(isredirectchar(bucket) == true){
 				while(bucket[i]!= NULL){
-					if (strcmp(bucket[i], ">") == 0 || (strcmp(bucket[i], "<")) {
+					if (strcmp(bucket[i], ">") == 0 || (strcmp(bucket[i], "<"))) {
 					break;
 					}
 					bucket_pop[i] = bucket[i];
@@ -306,7 +306,6 @@ int main() {
 				else if (strcmp (bucket[i], "<") == 0){
 					redirect(bucket_pop[i], bucket[1], bucket[3]);
 				}				
-				//INFO GOES HERE
 				
 			}
 			else if(strcmp(bucket[0], "echo") == 0){
@@ -459,7 +458,6 @@ int main() {
                         	//    int childstatus;
                         	//    waitpid(pid,&childstatus,WNOHANG);
                         	//}
-                       	} 
         }  /*until "exit" is read in*/
 	
         free(bucket);	/*free dynamic memory*/
