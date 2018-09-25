@@ -7,6 +7,11 @@ README
 Makefile
 project1.c
 
+Workload:
+Danny= Parsing, Environmental Variables, Prompt, Path Resolution, I/O Redirection
+David= I/O Redirection, Piping, README
+Alexandra= Background Processes, Builtins, Exit time counter, README, Makefile
+
 Completed using: linprog
 
 To build:
@@ -20,7 +25,7 @@ $> make test
 
 Known bugs:
 
-To do:
+To do: Finishing Piping, 
 
 Additional comments:
 
