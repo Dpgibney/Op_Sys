@@ -113,7 +113,7 @@ int main() {
 					printf("Error there is no command");
 				}
 				else{
-					printf("made it to cmd &\n");
+					printf("made asdfasdf it to cmd &\n");
 					if((pid = fork())==0){
 						bucket[0] = addPath(bucket[0],pathtokens);
 						bucket[numI-1] = NULL;
@@ -127,15 +127,16 @@ int main() {
 					processes[processcount-1].pid = pid;
 					processes[processcount-1].position = 1;
 					processes[processcount-1].state = true;
-					char * tmp = (char *)malloc(256*sizeof(char));
-					strcpy(tmp, bucket[1]);
+					processes[processcount-1].cmd = (char *)malloc(256*sizeof(char));
+					strcpy(processes[processcount-1].cmd, bucket[0]);
+                                        bucket[numI-1] = NULL;
 					int i = 1;
 					while(bucket[i] != NULL){
-						strcat(tmp, " ");
-						strcat(tmp, bucket[i]);
+						strcat(processes[processcount-1].cmd, " ");
+						strcat(processes[processcount-1].cmd, bucket[i]);
 						i++;
 					}
-					processes[processcount-1].cmd = tmp;
+                                        printf("process: %s\n",processes[processcount-1].cmd);
 				}
 			}
 			else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
@@ -145,7 +146,7 @@ int main() {
 					}
 					//behaves like CMD&
 					else{
-						printf("made it to & cmd &\n");
+						printf("made it to  asdfads& cmd &\n");
 							if((pid = fork()) == 0){
 								bucket[1] = addPath(bucket[1],pathtokens);
 								bucket[numI-1] = NULL;
@@ -159,15 +160,14 @@ int main() {
 							processes[processcount-1].pid = pid;
 							processes[processcount-1].position = 1;
 							processes[processcount-1].state = true;
-							char * tmp = (char *)malloc(256*sizeof(char));
-							strcpy(tmp,bucket[1]);
+							processes[processcount-1].cmd = (char *)malloc(256*sizeof(char));
+							strcpy(processes[processcount-1].cmd,bucket[1]);
 							int i = 2;
 							while(bucket[i] != NULL){
-								strcat(tmp," ");
-								strcat(tmp,bucket[i]);
+								strcat(processes[processcount-1].cmd," ");
+								strcat(processes[processcount-1].cmd,bucket[i]);
 								i++;
 							}
-							processes[processcount-1].cmd = tmp;
 
 						}
 
@@ -202,15 +202,14 @@ int main() {
 							processcount++;
 							processes[processcount-1].pid = pid; processes[processcount-1].position = 1;
 							processes[processcount-1].state = true;
-							char * tmp = (char *)malloc(256*sizeof(char));
-							strcpy(tmp, bucket[0]);
+							processes[processcount-1].cmd = (char *)malloc(256*sizeof(char));
+							strcpy(processes[processcount-1].cmd, bucket[0]);
 							int i = 1;
 							while(bucket[i] != NULL){
-								strcat(tmp," ");
-								strcat(tmp, bucket[i]);
+								strcat(processes[processcount-1].cmd," ");
+								strcat(processes[processcount-1].cmd, bucket[i]);
 								i++;
 							}
-							processes[processcount-1].cmd = tmp;
 						}
 
 					}
@@ -237,15 +236,14 @@ int main() {
                                                         processes[processcount-1].pid = pid;
                                                         processes[processcount-1].position = 1;
                                                         processes[processcount-1].state = true;
-                                                        char * tmp = (char *)malloc(256*sizeof(char));
-                                                        strcpy(tmp, bucket[0]);
+                                                        processes[processcount-1].cmd = (char *)malloc(256*sizeof(char));
+                                                        strcpy(processes[processcount-1].cmd, bucket[0]);
                                                         int i = 1;
                                                         while(bucket[i] != NULL){
-                                                                strcat(tmp," ");
-                                                                strcat(tmp, bucket[i]);
+                                                                strcat(processes[processcount-1].cmd," ");
+                                                                strcat(processes[processcount-1].cmd, bucket[i]);
                                                                 i++;
                                                         }
-                                                        processes[processcount-1].cmd = tmp;
 					}
 					else{ // cmd1 | cmd2 &
 						//hardest implementation
@@ -296,15 +294,14 @@ int main() {
                                                         processes[processcount-1].pid = pid;
                                                         processes[processcount-1].position = 1;
                                                         processes[processcount-1].state = true;
-                                                        char * tmp = (char *)malloc(256*sizeof(char));
-                                                        strcpy(tmp, bucket[0]);
+                                                        processes[processcount-1].cmd = (char *)malloc(256*sizeof(char));
+                                                        strcpy(processes[processcount-1].cmd, bucket[0]);
                                                         int i = 1;
                                                         while(bucket[i] != NULL){
-                                                                strcat(tmp," ");
-                                                                strcat(tmp, bucket[i]);
+                                                                strcat(processes[processcount-1].cmd," ");
+                                                                strcat(processes[processcount-1].cmd, bucket[i]);
                                                                 i++;
                                                         }
-                                                        processes[processcount-1].cmd = tmp;
 					}
 
 				}
@@ -642,9 +639,18 @@ char** parsePath(char* path){
 }
 
 struct queue* allocate(struct queue *processes, int num){
-	struct queue *process = malloc(num* sizeof(processes));
-	process = realloc(processes, (num+1)* sizeof(processes));
-	free(processes);
+        int i = 0;
+	struct queue *process = malloc((num+1)* sizeof(struct queue));
+	for(i = 0; i < num; i++){
+            process[i].pid = processes[i].pid;
+            process[i].cmd = (char *)malloc((strlen(processes[i].cmd)+1) * sizeof(char));
+            memset(process[i].cmd, '\0', (strlen(processes[i].cmd)+1)*sizeof(char));
+            strcpy(process[i].cmd, processes[i].cmd);
+            process[i].position = processes[i].position;
+            process[i].state = processes[i].state;
+        }
+        //if(num > 0)
+	//free(processes);
 	return process;
 }
 bool ifBackground(char** instr, int num){
