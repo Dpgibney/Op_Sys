@@ -21,7 +21,7 @@ char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
 char** parsePath(char * path);
-void redirect(char *bucket[]);
+void redirect(char *bucket[], char ** pathtoken);
 struct queue* allocate(struct queue *processes, int num);
 bool ifBackground(char** instr, int num);
 bool containsspecialchar(char ** bucket);
@@ -309,7 +309,7 @@ int main() {
 				}
 	}	
 		else if(isredirectchar(bucket)== true){
-			redirect(bucket);
+			redirect(bucket,pathtokens);
 			} 
 
 
@@ -647,13 +647,13 @@ bool ifBackground(char** instr, int num){
 	} return false;
 }
 
-void redirect(char *bucket[]) {
+void redirect(char *bucket[],char ** pathtoken) {
 	pid_t pid;
 	int infile, outfile;
+        int status;
 	int i = 0;
-	char ** pathtoken;
-	char * outputfile;
-	char * inputfile;
+        int w;
+        bool new_in = false;
 	printf("Redirect function begins\n");
 	if ((pid = fork()) == -1){
 		printf("Error: Child process could not be created\n");
@@ -663,51 +663,52 @@ void redirect(char *bucket[]) {
 	if (pid == 0){ 
 		printf("Child Process begins\n");
 		//Working in child process
-			//loop through command line input
-			while (bucket[i] != NULL){
-				if (strcmp(bucket[i],">")==0) {
-					//command is outputting to file (CMD > FILE)
-					printf("OUTPUT START\n");
-					inputfile = bucket[i+1];
-					if(bucket[i]== NULL || bucket[i-1] == NULL || bucket[i+1] == NULL){
-						printf("Error: Not enough input arguments\n");
-						return (EXIT_FAILURE);
-					}
-					else if (strcmp(bucket[i], ">") != 0 ){ 
-						printf( "Expected '>' error\n");
-						return (EXIT_FAILURE);
-					 }
-				
-			if (outfile = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC , S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) ==1){
-			fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
-                                                                	return(EXIT_FAILURE);
-                                                                }	
-			dup2(outfile, STDOUT_FILENO);
-			close(outfile); 
-			
-					}
-						
-				else if (strcmp(bucket[i], "<")==0) { 
-				//file is inputting to command (CMD < FILE)
-				printf("INPUT START\n");
-				outputfile = bucket[i+1];
-				if(bucket[i+1]== NULL){ 
-				printf("Error: Missing file name for redirect\n"); return EXIT_FAILURE;
+		//loop through command line input
+		while (bucket[i] != NULL){
+			if (strcmp(bucket[i],">")==0) {
+				//command is outputting to file (CMD > FILE)
+				printf("OUTPUT START\n");
+				if(bucket[i]== NULL || bucket[i-1] == NULL || bucket[i+1] == NULL){
+					printf("Error: Not enough input arguments\n");
+					return (EXIT_FAILURE);
 				}
-				if(infile = open(inputfile, O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1){
-				fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
-                                                                	return(EXIT_FAILURE);
-                                                                }
-				dup2(infile, STDIN_FILENO); 
-				close(infile);
+				else if (strcmp(bucket[i], ">") != 0 ){ 
+					printf( "Expected '>' error\n");
+					return (EXIT_FAILURE);
 				}
- 			i++;
+
+				if ((outfile = open(bucket[i+1], O_WRONLY | O_CREAT | O_TRUNC , S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) ==1){
+					fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+					return(EXIT_FAILURE);
+				}	
+				dup2(outfile, STDOUT_FILENO);
+				close(outfile); 
+                                bucket[i] = NULL;
+
 			}
-			bucket[i]= NULL;
-			bucket[0]= addPath(bucket[0], pathtoken); 
-			execv(bucket[0], bucket);
+
+			else if (strcmp(bucket[i], "<")==0) { 
+				//file is inputting to command (CMD < FILE)
+                                bucket[i] = NULL;
+				printf("file to open %s\n",bucket[i+1]);
+				if(bucket[i+1] == NULL){ 
+					printf("Error: Missing file name for redirect\n"); return EXIT_FAILURE;
+				}
+				if((infile = open(bucket[i+1], O_RDONLY )) == -1){
+					fprintf(stderr, "shell: error opening file: %s\n", strerror(errno));
+					return(EXIT_FAILURE);
+				}
+                                new_in = true;
+		   dup2(infile, 0);
+		   close(infile);
+			}
+			i++;
+		}
+		bucket[0] = addPath(bucket[0], pathtoken); 
+                fprintf(stderr,"path %s\n",bucket[0]);
+		execv(bucket[0], bucket);
 	} 
-			waitpid(pid, NULL, 0);	
+	waitpid(pid, NULL, 0);	
 }		
 char * expandenv(char* env){ return getenv(env+1);
  }
