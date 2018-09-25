@@ -1,13 +1,13 @@
-#include <stdio.h>
+#include <stdio.h> 
 #include <dirent.h> 
 #include <string.h> 
-#include <stdlib.h>
+#include <stdlib.h> 
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/time.h>
+#include <sys/time.h> 
 #include <stdbool.h>
 #include <errno.h>
 struct queue{
@@ -21,22 +21,24 @@ char** addToken(char** instr, char* tok, int numTokens);
 void printTokens(char** instr, int numTokens);
 char * addPath(char * instr, char ** path);
 char** parsePath(char * path);
-void redirect(char *bucket[]);
-bool isRedirect(char *bucket[]);
+void redirect(char *bucket[], char *inputfile, char *outputfile);
 struct queue* allocate(struct queue *processes, int num);
 bool ifBackground(char** instr, int num);
 bool containsspecialchar(char ** bucket);
 char * expandenv(char* env);
 void stillrunning(struct queue* processes, int processcount);
 void multipiping(char *bucket[]);
+bool isredirectchar(char ** bucket);
 
 int main() {
         char token[256];		/* holds instruction token*/
         char ** bucket;			/* array that holds all instruction tokens*/
         char temp[256];			/* used to split instruction tokens containing special characters*/
-        int pid;
+        char *bucket_pop[256];
+	int pid;
         int w;
         int status;
+	int i = 0;	
    	struct timeval start, finish;
 	struct queue *processes;
         char* path;
@@ -176,13 +178,13 @@ int main() {
 				else if((bucket[numI-1] != NULL)&&(strcmp(bucket[numI-1],"&")==0)){
 					if(strcmp(bucket[numI-3],">")==0){ //cmd > file&
 						if(strcmp(bucket[0],">")==0){
-							printf("made it to cmd > file&\n");
+							//printf("made it to cmd > file&\n");
 						}
 						else{
 							bucket[numI-3] = NULL;
 							if((pid = fork())==0){
 								int outfile;
-								printf("file to open %s\n", bucket[numI-2]);
+								//printf("file to open %s\n", bucket[numI-2]);
 								if((outfile = open(bucket[numI-2],  O_WRONLY | O_CREAT | O_TRUNC,
                                                                         S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
 									fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
@@ -198,8 +200,7 @@ int main() {
 							printf("pid %d\n", pid);
 							processes = allocate(processes,processcount);
 							processcount++;
-							processes[processcount-1].pid = pid;
-							processes[processcount-1].position = 1;
+							processes[processcount-1].pid = pid; processes[processcount-1].position = 1;
 							processes[processcount-1].state = true;
 							char * tmp = (char *)malloc(256*sizeof(char));
 							strcpy(tmp, bucket[0]);
@@ -288,20 +289,31 @@ int main() {
 				}
 
 		}
-		else{
-			if(containsspecialchar(bucket)){
-				//io and piping should go here
+		
+			else if(isredirectchar(bucket) == true){
+				while(bucket[i]!= NULL){
+					if (strcmp(bucket[i], ">") == 0 || (strcmp(bucket[i], "<")) {
+					break;
+					}
+					bucket_pop[i] = bucket[i];
+					i++;
+				}
+				
+				if (strcmp (bucket[i], ">") == 0){
+					redirect(bucket_pop[i], bucket[1], bucket[3]);
+				}
+
+				else if (strcmp (bucket[i], "<") == 0){
+					redirect(bucket_pop[i], bucket[1], bucket[3]);
+				}				
 				//INFO GOES HERE
 				
 			}
 			else if(strcmp(bucket[0], "echo") == 0){
 				if(bucket[1] != NULL){
-					char tempChar[1];
-					char *tempS = bucket[1];
-					char * ePath;
-					memcpy(tempChar, bucket[1],1);
-					if(tempChar[0] ==  '$'){
-						strcpy(tempS,tempS+1);
+					char tempChar[1]; char *tempS = bucket[1];
+					char * ePath; memcpy(tempChar, bucket[1],1);
+					if(tempChar[0] ==  '$'){ strcpy(tempS,tempS+1);
 						if((ePath = getenv(tempS))){
 							printf("%s\n",ePath);
 						}
@@ -625,10 +637,11 @@ bool ifBackground(char** instr, int num){
 	} return false;
 }
 
-void redirect(char *bucket[]) {
+void redirect(char *bucket[], char *inputfile, char* outputfile) {
 	pid_t pid;
 	int infile, outfile;
 	int i = 0;
+ 	int pop = i + 1;
 	char ** pathtoken;
 	if ((pid = fork()) == -1){
 		printf("Error: Child process could not be created\n");
@@ -637,16 +650,22 @@ void redirect(char *bucket[]) {
 
 	if (pid == 0){ 
 		//Working in child process
-		while(bucket[i]!= NULL) {
+		
 			if(strcmp(bucket[i], ">") == 0) {
 				//check for ">"
 				//command is outputting to file (CMD > FILE)
-				if(bucket[i+1]== NULL){
-					printf("Error: Missing file name for redirect\n");
-					return EXIT_FAILURE;
+				if(bucket[i]== NULL || bucket[i-1] == NULL || bucket[i+1] == NULL){
+					printf("Error: Not enough input arguments\n");
+					return (EXIT_FAILURE);
+				}
+				else{
+					if (strcmp(bucket[i], ">") != 0 ){ 
+						printf( "Expected '>' error\n");
+						return (EXIT_FAILURE);
+					}
 				}
 			bucket[i] = NULL;
-			if ((outfile = open(bucket[i+1], O_WRONLY | O_CREAT | O_TRUNC , S_IRUSR | S_IWUSR, 0766)) == -1) {
+			if ((outfile = open(bucket[i+1], O_WRONLY | O_CREAT | O_TRUNC , S_IRUSR | S_IWUSR)) == -1) {
 				fprintf(stderr, "error creating file: %s\n", strerror(errno));
 				return (EXIT_FAILURE);
 			}
@@ -662,7 +681,7 @@ void redirect(char *bucket[]) {
 					return EXIT_FAILURE;
 				}
 				bucket[i] = NULL;
-				if ((infile = open(bucket[i+1], O_RDONLY | S_IRUSR | S_IWUSR, 0766)) == -1) {
+				if ((infile = open(bucket[i+1], O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
 					fprintf(stderr, "no such file or directory: %s\n", strerror(errno));
 					return (EXIT_FAILURE);
 				}
@@ -671,25 +690,10 @@ void redirect(char *bucket[]) {
 				return (EXIT_FAILURE);
 			}
 
-			bucket[0]= addPath(bucket[0], pathtoken); execv(bucket[0], bucket); 
+			bucket[0]= addPath(bucket[0], pathtoken);
+			 execv(bucket[0], bucket); 
 			i++; }
 	}		
-}
-
-bool isRedirect(char *bucket[]){
-int i = 0;
-	while(bucket[i] != NULL){
-		if(strcmp(bucket[i], ">") == 0)
-			return true;
-
-		else if(strcmp(bucket[i], "<") == 0)
-			return true;
-
-
-	i++;
-	}
-	return false;
-}
 
 
 void multipiping(char *bucket[]){
@@ -699,8 +703,7 @@ int fd2[2];
 int num_commands = 0;
 
 char *command[256];
-pid_t pid;
-int i, j, k, l = 0;
+pid_t pid; int i, j, k, l = 0;
 int end = 0;
 int err = -1;
 
@@ -712,7 +715,6 @@ while(bucket[l] != NULL){
 	l++;
 }
 num_commands++;
-
 //Main Loop, for each command between '|' pipes will be configured and stdin/out will be replaced.
 while (bucket[j] != NULL && end != 1){
 	k = 0;
@@ -733,11 +735,9 @@ while (bucket[j] != NULL && end != 1){
 	j++;
 	//Set different descriptors for pipes inputs and output, to connect commands
 	if (i%2 != 0){
-		pipe(fd); //for odd i
-	}else{
+		pipe(fd); //for odd i }else{
 		pipe(fd2); //for even i
-	}
-
+	} 
 	if ((pid = fork()) == -1){
 		if (i != num_commands -1){
 			if (i % 2 != 0){
@@ -785,7 +785,7 @@ while (bucket[j] != NULL && end != 1){
 		}
 	}
 
-//closing file descriptors on parent
+	//closing file descriptors on parent
 		
 		if (i == 0){
 			close(fd2[i]);
@@ -814,14 +814,7 @@ while (bucket[j] != NULL && end != 1){
 }
 
 
-
-	
-
-	
-
-	
-char * expandenv(char* env){
-     return getenv(env+1); 
+char * expandenv(char* env){ return getenv(env+1); 
 }
 void stillrunning(struct queue *processes, int processcount){
     int i;
@@ -854,3 +847,16 @@ bool containsspecialchar(char ** bucket){
      }
      return false;
 }
+
+bool isredirectchar(char ** bucket){
+	int i;
+	i = 0;
+	while(bucket[i]!= NULL){
+		if(strcmp(bucket[i], ">") == 0 || strcmp(bucket[i], ">")==0){
+			return true;
+		}
+	i++;
+	}
+	return false;
+}
+		
