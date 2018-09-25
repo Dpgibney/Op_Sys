@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I. -pedantic -Wall
+CFLAGS=-I. -Wall
 TARGET = project1
 
 all: $(TARGET)
