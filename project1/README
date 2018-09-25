@@ -19,8 +19,11 @@ To run test suite:
 $> make test
 
 Known bugs:
+	-If too many background processes are entered there is an error in free() within addToken() and main().
+
 
 To do:
+	-CMD1 | CMD2 & not completed.
 
 Additional comments:
 
