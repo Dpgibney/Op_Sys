@@ -122,13 +122,12 @@ int main() {
 					printf("pid %d\n", pid);
 					processes = allocate(processes, processcount);
 					processcount++;
-					processes = allocate(processes, processcount);
 					processes[processcount-1].pid = pid;
 					processes[processcount-1].position = 1;
 					processes[processcount-1].state = true;
 					char * tmp = (char *)malloc(256*sizeof(char));
 					strcpy(tmp, bucket[1]);
-					int i = 2;
+					int i = 1;
 					while(bucket[i] != NULL){
 						strcat(tmp, " ");
 						strcat(tmp, bucket[i]);
@@ -139,7 +138,7 @@ int main() {
 			}
 			else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
 				if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //&cmd&
-					if((strcmp(bucket[1],"&")==0)){
+					if((strcmp(bucket[1],"&")==0)||strcmp(bucket[1],"|")==0){
 						printf("Error there is no command");
 					}
 					//behaves like CMD&
@@ -174,6 +173,7 @@ int main() {
 					}
 				}
 				else if((bucket[numI-1] != NULL)&&(strcmp(bucket[numI-1],"&")==0)){
+					printf("ADASDASD");
 					if(strcmp(bucket[numI-3],">")==0){ //cmd > file&
 						if(strcmp(bucket[0],">")==0){
 							printf("made it to cmd > file&\n");
@@ -248,21 +248,47 @@ int main() {
 					}
 					else{ // cmd1 | cmd2 &
 						//hardest implementation
+						int tmpfile[2];
+						bucket[numI-1] = NULL;
+						int ispipe = 0;
+						int x;
+						for(x = 0; x < numI-1; x++){
+							if(strcmp(bucket[x], "|")==0){
+								ispipe = x;
+							}
+						}
+						printf("%d\n",ispipe);
+						pipe(tmpfile);
 						if((pid = fork())==0){
-                                                        int infile;
-                                                    	printf("file to open %s\n", bucket[numI-2]);
+                                              		int infile = tmpfile[0];
+                                                        printf("file to open %s\n", bucket[numI-2]);
                                                         if((infile = open(bucket[numI-2],  O_RDONLY , S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
-								fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+                                                               	fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
                                                                 return(EXIT_FAILURE);
                                                         }
                                                         dup2(infile, STDIN_FILENO);
                                                         close(infile);
                                                         bucket[0] = addPath(bucket[0],pathtokens);
-                                                       	execv(bucket[0],bucket);
+                                                        execv(bucket[0],bucket);
                                                         fprintf(stderr, "couldnt execute %s\n", strerror(errno));
-                                                      	exit(EXIT_FAILURE);
+                                                        exit(EXIT_FAILURE);
 
-                                              	}
+						}
+						if((pid = fork())==0){
+							int outfile = tmpfile[2];
+                                                       	printf("file to open %s\n", bucket[numI-2]);
+                                                        if((outfile = open(bucket[numI-2],  O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
+                                                               	fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+                                                               	return(EXIT_FAILURE);
+                                                        }
+                                                        dup2(outfile, 1);
+                                                        close(outfile);
+                                                        bucket[0] = addPath(bucket[ispipe],pathtokens);
+                                                        execv(bucket[0],bucket);
+                                                        fprintf(stderr, "couldnt execute %s\n", strerror(errno));
+                                                       	exit(EXIT_FAILURE);
+
+						}
                                                         printf("pid %d\n", pid);
                                                         processes = allocate(processes,processcount);
                                                         processcount++;
@@ -292,7 +318,8 @@ int main() {
 			if(containsspecialchar(bucket)){
 				//io and piping should go here
 				//INFO GOES HERE
-				
+				multipiping(bucket);
+				printf("HERE");
 			}
 			else if(strcmp(bucket[0], "echo") == 0){
 				if(bucket[1] != NULL){
@@ -770,6 +797,7 @@ while (bucket[j] != NULL && end != 1){
 			//position is important in order to chooose the file descriptor
 		}else{ 
 			if(i%2 !=0){
+				printf(fd2[0]);
 				dup2(fd2[0], STDIN_FILENO);
 				dup2(fd[1], STDOUT_FILENO);
 			}else{ 
@@ -811,13 +839,7 @@ while (bucket[j] != NULL && end != 1){
 		i++;
 	
 	}
-}
-
-
-
-	
-
-	
+}	
 
 	
 char * expandenv(char* env){
