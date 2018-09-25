@@ -287,10 +287,10 @@ int main() {
 						printf("Error: not a vaild input\n");
 					}
 				}
-
-		}
-		
+} 
 			else if(isredirectchar(bucket) == true){
+				printf("Is this working? 1\n");
+				i = 0;
 				while(bucket[i]!= NULL){
 					if (strcmp(bucket[i], ">") == 0 || (strcmp(bucket[i], "<"))) {
 					break;
@@ -641,6 +641,7 @@ void redirect(char *bucket[], char *inputfile, char* outputfile) {
 	int i = 0;
  	int pop = i + 1;
 	char ** pathtoken;
+	printf("Is this working?\n");
 	if ((pid = fork()) == -1){
 		printf("Error: Child process could not be created\n");
 		return (EXIT_FAILURE);
@@ -650,6 +651,7 @@ void redirect(char *bucket[], char *inputfile, char* outputfile) {
 		//Working in child process
 		
 			if(strcmp(bucket[i], ">") == 0) {
+			printf("Is this working? 2\n");
 				//check for ">"
 				//command is outputting to file (CMD > FILE)
 				if(bucket[i]== NULL || bucket[i-1] == NULL || bucket[i+1] == NULL){
@@ -663,7 +665,7 @@ void redirect(char *bucket[], char *inputfile, char* outputfile) {
 					}
 				}
 			bucket[i] = NULL;
-			if ((outfile = open(bucket[i+1], O_WRONLY | O_CREAT | O_TRUNC , S_IRUSR | S_IWUSR)) == -1) {
+			if ((outfile = open(bucket[i+1], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)) == -1) {
 				fprintf(stderr, "error creating file: %s\n", strerror(errno));
 				return (EXIT_FAILURE);
 			}
@@ -672,6 +674,7 @@ void redirect(char *bucket[], char *inputfile, char* outputfile) {
 			}
 
 			else if(strcmp(bucket[i], "<") == 0) {
+				printf("Is this working? 3\n");
 				//check for "<" 
 				//file is inputting to command (CMD < FILE)
 				if(bucket[i+1]== NULL){
@@ -687,10 +690,10 @@ void redirect(char *bucket[], char *inputfile, char* outputfile) {
 				close(infile);
 				return (EXIT_FAILURE);
 			}
-
 			bucket[0]= addPath(bucket[0], pathtoken);
-			 execv(bucket[0], bucket); 
-			i++; }
+			execv(bucket[0], bucket); 
+			}
+			waitpid(pid, NULL, 0);	
 	}		
 
 
@@ -727,9 +730,7 @@ while (bucket[j] != NULL && end != 1){
 			break;
 		}
 		k++;
-	}
-	//last position of command will be NULL to indicate end when passed to exec
-	command[k] = NULL;
+	} //last position of command will be NULL to indicate end when passed to exec command[k] = NULL;
 	j++;
 	//Set different descriptors for pipes inputs and output, to connect commands
 	if (i%2 != 0){
