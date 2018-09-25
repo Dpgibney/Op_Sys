@@ -93,17 +93,6 @@ int main() {
 			}
                 } while ('\n' != getchar());    /*until end of line is reached*/
                 
-                bucket[numI] = NULL;
-		if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0) && (strcmp(bucket[0],"&")!=0) && !containsspecialchar(bucket)){ //CMD &
-                                    printf("made it to cmd &\n");
-			
-		}
-		else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
-			if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //&cmd&
-				if((strcmp(bucket[1],"&")==0)){
-					printf("Error there is no command");
-		}
-
 
 		bucket[numI] = NULL;
 		if(ifBackground(bucket, numI)){
