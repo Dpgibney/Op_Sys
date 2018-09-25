@@ -251,11 +251,12 @@ int main() {
 							ispipe = x;
 						}
 					}
+                                        bucket[ispipe] = NULL;
 					printf("%d\n",ispipe);
 					pipe(tmpfile);
 					if((pid = fork())==0){
 							int infile;
-                                                	printf("file to open %s\n", bucket[numI-2]);
+                                                	printf("pipe file to open %s\n", bucket[numI-2]);
                                                         if((infile = open(bucket[numI-2],  O_RDONLY , S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
                                                                	fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
                                                                 return(EXIT_FAILURE);
@@ -270,7 +271,7 @@ int main() {
 						}
 						if((pid = fork())==0){
 							int outfile = tmpfile[2];
-                                                       	printf("file to open %s\n", bucket[numI-2]);
+                                                       	printf("pipe file to open %s\n", bucket[numI-2]);
                                                         if((outfile = open(bucket[numI-2],  O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
                                                                	fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
                                                                	return(EXIT_FAILURE);
