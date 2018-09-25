@@ -95,46 +95,55 @@ int main() {
 		} while ('\n' != getchar());    /*until end of line is reached*/
 
 		bucket[numI] = NULL;
+
+		printf("%d\n", numI);
+		if((ifBackground(bucket, numI))&& (numI > 1)){
+			if(strcmp(bucket[0],"&")==0){ //&cmd
+				bucket = &bucket[1];
+				numI = numI - 1;
+				printf("made it to & cmd\n");
+			}
+		}
 		if(ifBackground(bucket, numI)){
-				if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0) && (strcmp(bucket[0],"&")!=0) && !containsspecialchar(bucket)){ //CMD &
+			if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0) && (strcmp(bucket[0],"&")!=0) && !containsspecialchar(bucket)){ //CMD &
 				if(strcmp(bucket[0],"&")==0){
-				printf("Error there is no command");
+					printf("Error there is no command");
 				}
 				else{
-				printf("made it to cmd &\n");
-				if((pid = fork())==0){
-				bucket[0] = addPath(bucket[0],pathtokens);
-				bucket[numI-1] = NULL;
-				execv(bucket[0],&bucket[0]);
-				printf("Error there is no command");
-				exit(EXIT_FAILURE);
+					printf("made it to cmd &\n");
+					if((pid = fork())==0){
+						bucket[0] = addPath(bucket[0],pathtokens);
+						bucket[numI-1] = NULL;
+						execv(bucket[0],&bucket[0]);
+						printf("Error there is no command");
+						exit(EXIT_FAILURE);
+					}
+					printf("pid %d\n", pid);
+					processes = allocate(processes, processcount);
+					processcount++;
+					processes = allocate(processes, processcount);
+					processes[processcount-1].pid = pid;
+					processes[processcount-1].position = 1;
+					processes[processcount-1].state = true;
+					char * tmp = (char *)malloc(256*sizeof(char));
+					strcpy(tmp, bucket[1]);
+					int i = 2;
+					while(bucket[i] != NULL){
+						strcat(tmp, " ");
+						strcat(tmp, bucket[i]);
+						i++;
+					}
+					processes[processcount-1].cmd = tmp;
 				}
-				printf("pid %d\n", pid);
-				processes = allocate(processes, processcount);
-				processcount++;
-				processes = allocate(processes, processcount);
-				processes[processcount-1].pid = pid;
-				processes[processcount-1].position = 1;
-				processes[processcount-1].state = true;
-				char * tmp = (char *)malloc(256*sizeof(char));
-				strcpy(tmp, bucket[1]);
-				int i = 2;
-				while(bucket[i] != NULL){
-					strcat(tmp, " ");
-					strcat(tmp, bucket[i]);
-					i++;
-				}
-				processes[processcount-1].cmd = tmp;
-				}
-				}
-				else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
-					if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //&cmd&
-						if((strcmp(bucket[1],"&")==0)){
-							printf("Error there is no command");
-						}
-						//behaves like CMD&
-						else{
-							printf("made it to & cmd &\n");
+			}
+			else if((bucket[0]!=NULL) && (strcmp(bucket[0],"&")==0)){
+				if((bucket[numI-1]!=NULL) && (strcmp(bucket[numI-1],"&")==0)){ //&cmd&
+					if((strcmp(bucket[1],"&")==0)){
+						printf("Error there is no command");
+					}
+					//behaves like CMD&
+					else{
+						printf("made it to & cmd &\n");
 							if((pid = fork()) == 0){
 								bucket[1] = addPath(bucket[1],pathtokens);
 								bucket[numI-1] = NULL;
@@ -161,11 +170,6 @@ int main() {
 						}
 
 
-					}
-					else{ //&cmd
-						bucket = &bucket[1];
-						numI = numI - 1;
-						printf("made it to & cmd\n");
 					}
 				}
 				else if((bucket[numI-1] != NULL)&&(strcmp(bucket[numI-1],"&")==0)){
@@ -243,17 +247,36 @@ int main() {
 					}
 					else{ // cmd1 | cmd2 &
 						//hardest implementation
-						int counter = 0;
-						bool bg = false;
-						for(counter = 0; counter < numI; counter++){
-							if(strcmp(bucket[counter],"|")==0){
-								bg = true;
-							}
-							counter = counter+1;
-						}
-						if(bg){
-							printf("made it to cmd | file&\n"); 
-						}
+						if((pid = fork())==0){
+                                                        int infile;
+                                                    	printf("file to open %s\n", bucket[numI-2]);
+                                                        if((infile = open(bucket[numI-2],  O_RDONLY , S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
+								fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+                                                                return(EXIT_FAILURE);
+                                                        }
+                                                        dup2(infile, STDIN_FILENO);
+                                                        close(infile);
+                                                        bucket[0] = addPath(bucket[0],pathtokens);
+                                                       	execv(bucket[0],bucket);
+                                                        fprintf(stderr, "couldnt execute %s\n", strerror(errno));
+                                                      	exit(EXIT_FAILURE);
+
+                                              	}
+                                                        printf("pid %d\n", pid);
+                                                        processes = allocate(processes,processcount);
+                                                        processcount++;
+                                                        processes[processcount-1].pid = pid;
+                                                        processes[processcount-1].position = 1;
+                                                        processes[processcount-1].state = true;
+                                                        char * tmp = (char *)malloc(256*sizeof(char));
+                                                        strcpy(tmp, bucket[0]);
+                                                        int i = 1;
+                                                        while(bucket[i] != NULL){
+                                                                strcat(tmp," ");
+                                                                strcat(tmp, bucket[i]);
+                                                                i++;
+                                                        }
+                                                        processes[processcount-1].cmd = tmp;
 					}
 
 				}
@@ -265,7 +288,12 @@ int main() {
 
 		}
 		else{
-			if(strcmp(bucket[0], "echo") == 0){
+			if(containsspecialchar(bucket)){
+				//io and piping should go here
+				//INFO GOES HERE
+				
+			}
+			else if(strcmp(bucket[0], "echo") == 0){
 				if(bucket[1] != NULL){
 					char tempChar[1];
 					char *tempS = bucket[1];
