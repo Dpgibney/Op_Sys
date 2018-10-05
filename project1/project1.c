@@ -99,12 +99,10 @@ int main() {
 
 		bucket[numI] = NULL;
 
-		printf("%d\n", numI);
 		if((ifBackground(bucket, numI))&& (numI > 1)){
 			if(strcmp(bucket[0],"&")==0){ //&cmd
 				bucket = &bucket[1];
 				numI = numI - 1;
-				printf("made it to & cmd\n");
 			}
 		}
 		if(ifBackground(bucket, numI)){
@@ -113,7 +111,6 @@ int main() {
 					printf("Error there is no command");
 				}
 				else{
-					printf("made asdfasdf it to cmd &\n");
 					if((pid = fork())==0){
 						bucket[0] = addPath(bucket[0],pathtokens);
 						bucket[numI-1] = NULL;
@@ -146,7 +143,6 @@ int main() {
 					}
 					//behaves like CMD&
 					else{
-						printf("made it to  asdfads& cmd &\n");
 						if((pid = fork()) == 0){
 							bucket[1] = addPath(bucket[1],pathtokens);
 							bucket[numI-1] = NULL;
@@ -177,13 +173,12 @@ int main() {
 			else if((bucket[numI-1] != NULL)&&(strcmp(bucket[numI-1],"&")==0)){
 				if(strcmp(bucket[numI-3],">")==0){ //cmd > file&
 					if(strcmp(bucket[0],">")==0){
-						//printf("made it to cmd > file&\n");
+						printf("Error there is no command\n");
 					}
 					else{
 						bucket[numI-3] = NULL;
 						if((pid = fork())==0){
 							int outfile;
-							//printf("file to open %s\n", bucket[numI-2]);
 							if((outfile = open(bucket[numI-2],  O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
 								fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
 								return(EXIT_FAILURE);
@@ -215,7 +210,6 @@ int main() {
 					bucket[numI-3] = NULL;
 					if((pid = fork())==0){
 						int infile;
-						printf("file to open %s\n", bucket[numI-2]);
 						if((infile = open(bucket[numI-2],  O_RDONLY , S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
 							fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
 							return(EXIT_FAILURE);
@@ -253,52 +247,54 @@ int main() {
 							ispipe = x;
 						}
 					}
-					bucket[ispipe] = NULL;
-					printf("%d\n",ispipe);
-					pipe(tmpfile);
-					if((pid = fork())==0){
-						int infile;
-						printf("pipe file to open %s\n", bucket[numI-2]);
-						if((infile = open(bucket[numI-2],  O_RDONLY , S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
-							fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
-							return(EXIT_FAILURE);
-						}
-						dup2(infile, STDIN_FILENO);
-						close(infile);
-						bucket[0] = addPath(bucket[0],pathtokens);
-						execv(bucket[0],bucket);
-						fprintf(stderr, "couldnt execute %s\n", strerror(errno));
-						exit(EXIT_FAILURE);
-
+					if(strcmp(bucket[ispipe-1],"&")==0){
+						printf("Error: not a vaild input\n");
 					}
-					if((pid = fork())==0){
-						int outfile = tmpfile[2];
-						printf("pipe file to open %s\n", bucket[numI-2]);
-						if((outfile = open(bucket[numI-2],  O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
-							fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
-							return(EXIT_FAILURE);
-						}
-						dup2(outfile, 1);
-						close(outfile);
-						bucket[0] = addPath(bucket[ispipe],pathtokens);
-						execv(bucket[0],bucket);
-						fprintf(stderr, "couldnt execute %s\n", strerror(errno));
-						exit(EXIT_FAILURE);
+					else{
+						bucket[ispipe] = NULL;
+						pipe(tmpfile);
+						if((pid = fork())==0){
+							int infile;
+							if((infile = open(bucket[numI-2],  O_RDONLY , S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
+								fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+								return(EXIT_FAILURE);
+							}
+							dup2(infile, STDIN_FILENO);
+							close(infile);
+							bucket[0] = addPath(bucket[0],pathtokens);
+							execv(bucket[0],bucket);
+							fprintf(stderr, "couldnt execute %s\n", strerror(errno));
+							exit(EXIT_FAILURE);
 
-					}
-					printf("pid %d\n", pid);
-					processes = allocate(processes,processcount);
-					processcount++;
-					processes[processcount-1].pid = pid;
-					processes[processcount-1].position = 1;
-					processes[processcount-1].state = true;
-					processes[processcount-1].cmd = (char *)malloc(256*sizeof(char));
-					strcpy(processes[processcount-1].cmd, bucket[0]);
-					int i = 1;
-					while(bucket[i] != NULL){
-						strcat(processes[processcount-1].cmd," ");
-						strcat(processes[processcount-1].cmd, bucket[i]);
-						i++;
+						}
+						if((pid = fork())==0){
+							int outfile = tmpfile[2];
+							if((outfile = open(bucket[numI-2],  O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))==-1){
+								fprintf(stderr, "shell: error creating file: %s\n", strerror(errno));
+								return(EXIT_FAILURE);
+							}
+							dup2(outfile, 1);
+							close(outfile);
+							bucket[0] = addPath(bucket[ispipe],pathtokens);
+							execv(bucket[0],bucket);
+							fprintf(stderr, "couldnt execute %s\n", strerror(errno));
+							exit(EXIT_FAILURE);
+
+						}
+						printf("pid %d\n", pid);
+						processes = allocate(processes,processcount);
+						processcount++;
+						processes[processcount-1].pid = pid;
+						processes[processcount-1].position = 1;
+						processes[processcount-1].state = true;
+						processes[processcount-1].cmd = (char *)malloc(256*sizeof(char));
+						strcpy(processes[processcount-1].cmd, bucket[0]);
+						int i = 1;
+						while(bucket[i] != NULL){
+							strcat(processes[processcount-1].cmd," ");
+							strcat(processes[processcount-1].cmd, bucket[i]);
+							i++;
+						}
 					}
 				}
 
