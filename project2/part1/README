@@ -1,0 +1,1 @@
+main_orig.c is the most basic c program used as the starting point to add the 10 system calls to. With strace it originally had 24 syscalls. The file main.c has 34 system calls. Gotta make sure to ask the T.A. if this is correct.
