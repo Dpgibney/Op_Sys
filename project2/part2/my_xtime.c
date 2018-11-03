@@ -28,10 +28,10 @@ int my_xtime_proc_open(struct inode *sp_inode, struct file *sp_file){
 	 return -ENOMEM;
      }
      if(currenter_time.tv_nsec-start_time.tv_nsec < 0){
-     	sprintf(message,"current time1: %ld.%ld\nelapsed time: %ld.%ld\n",((currenter_time.tv_sec-start_time.tv_sec)-1),(1000000000+currenter_time.tv_nsec-start_time.tv_nsec),start_time.tv_sec,start_time.tv_nsec);
+     	sprintf(message,"current time: %ld.%ld\nelapsed time: %ld.%ld\n",start_time.tv_sec,start_time.tv_nsec,((currenter_time.tv_sec-start_time.tv_sec)-1),(1000000000+currenter_time.tv_nsec-start_time.tv_nsec));
 	}else{
 
-     sprintf(message,"current time2: %ld.%ld\nelapsed time: %ld.%ld\n",((currenter_time.tv_sec-start_time.tv_sec)),((currenter_time.tv_nsec-start_time.tv_nsec)),start_time.tv_sec,start_time.tv_nsec);
+     sprintf(message,"current time: %ld.%ld\nelapsed time: %ld.%ld\n",start_time.tv_sec,start_time.tv_nsec,((currenter_time.tv_sec-start_time.tv_sec)),((currenter_time.tv_nsec-start_time.tv_nsec)));
 	}
 	 return 0;
 
