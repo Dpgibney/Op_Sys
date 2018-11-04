@@ -1,10 +1,10 @@
-ifneq ($(KERNELRELEASE),)
-	obj-m := elevator.o
-else
-	KERNELDIR ?= /lib/modules/`uname -r`/build/
-	PWD := `pwd`
+obj-y := start_elevator.o
+obj-m := elevator.o
+PWD := $(shell pwd)
+KDIR := /lib/modules/`uname -r`/build
+
 default:
-	$(MAKE) CONFIG_STACK_VALIDATION= -C $(KERNELDIR) M=$(PWD) modules
-endif
+	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
+
 clean:
-	rm -f *.ko *.o Module* *mod*
+	rm -f *.o *.ko *.mod.* Module.* modules.*
