@@ -80,6 +80,7 @@ void remove_person_elevator(int position){
      int tmp;
      //i is for counting up through all people except the one to remove
      int i;
+     i = 0;
      //remove the passengers weight
      //TODO may need to check that .passenger is what i think it is
      elev.weight_units -= elev.people[position].weight;
@@ -110,7 +111,7 @@ bool add_person_elevator(int person, int floor){
     struct person* for_elevator;
     struct person* for_floor;
 
-    printk("testing %d %d\n",num_people[floor],elev.num_people);
+    //printk("testing %d %d\n",num_people[floor],elev.num_people);
         if(floors[floor][person].weight+elev.weight_units<=20 && floors[floor][person].passenger+elev.pass_units<=8 && !stopping){
 	   elev.num_people++;
 	   num_people[floor]--;
@@ -134,12 +135,14 @@ bool add_person_elevator(int person, int floor){
 	       for_elevator[i].passenger = elev.people[i].passenger;
 	       for_elevator[i].destination_floor = elev.people[i].destination_floor;
 	   }
+	   if(elev.num_people>0){
 	       for_elevator[elev.num_people-1].weight = floors[floor][person].weight;
 	       for_elevator[elev.num_people-1].passenger = floors[floor][person].passenger;
 	       for_elevator[elev.num_people-1].destination_floor = floors[floor][person].destination_floor;
+	   }
 	   //going over the full number of people since the individual hasnt technically been removed yet
 	   j = 0;
-	   for(i = 0; i < num_people[floor]; i++){
+	   for(i = 0; i <= num_people[floor]; i++){
 		   
 	       if(i != person){
 	          for_floor[j].weight = floors[floor][i].weight;
@@ -167,16 +170,16 @@ bool passenger_check(void){
      for(tmp = 0; tmp < elev.num_people; tmp++){
          if(elev.people[tmp].destination_floor == elev.floor){
 	    remove_person_elevator(tmp);
+            number_serviced[elev.floor]++;
 	    load_unload = true;
 	    //remove the person and decrement tmp so that it will recheck this persons position and not skip over a potential nother person wanting to get off
-	    tmp--; 
+	    tmp = 0; 
 	 }
      }
 
      //for putting people in the elevator
-     printk("testing peop on floor %d\n",num_people[elev.floor]);
+     //printk("testing peop on floor %d\n",num_people[elev.floor]);
      for(tmp = 0; tmp < num_people[elev.floor]; tmp++){
-	     printk("elev.floor %d floors[elev.floor][tmp].destination_floor %d\n",floors[elev.floor][tmp].destination_floor,elev.floor);
 		 //TODO make it so people are only added in the direction of current travel or if the destination = current floor
 	         if(add_person_elevator(tmp,elev.floor)){
 		    load_unload = true;
@@ -194,6 +197,7 @@ bool passenger_check(void){
 
 void move(void){
      int i;
+     int j;
      //current implementation ideas
      //the elevator goes to which ever floor people want or are waiting at in the current direction of travel until there are no more requests in that direction. Then check the other direction and if no one is found just idle
      int floor_difference;
@@ -206,23 +210,30 @@ void move(void){
      floor_difference = elev.next_floor - elev.floor;
      //moving up
      if(floor_difference > 0){
+	  elev.state = UP;
           elev.floor++;
 	  //check how many people want to get off at this floor then
 	  //check how many people want to get on at this floor and are able to
 	  //in this order the people will exit first before they enter
 	  if(passenger_check()){
               //sleep for 1 second since it takes that long to load/unload people
+	      elev.state = LOADING;
 	      ssleep(1);
+	      elev.state = UP;
 	  }
      //moving down
      }else if(floor_difference < 0){
           elev.floor--;
+	  elev.state = DOWN;
 	  if(passenger_check()){
+             elev.state = LOADING;
 	     ssleep(1);
+	     elev.state = DOWN;
 	  }
      }else{
      //this is if the elevator is on the final destination floor
          if(passenger_check()){
+            elev.state = LOADING;
 	    ssleep(1);
 	 }
 	 if(elev.num_people>0){
@@ -248,25 +259,68 @@ void move(void){
              }
 	     if(upwards>=downwards){
 	         elev.next_floor = upwards_destination;
+		 elev.state = UP;
 	     }else{
 	         elev.next_floor = downwards_destination;
+		 elev.state = DOWN;
 	     }
 	 }else if(!no_one_waiting()){
 	     //TODO make this find the closest people waiting on a floor and pick them up
-	 }
+         upwards = 0;
+         downwards = 0;
+         upwards_destination = MAX_FLOOR-1;
+         downwards_destination = 0;
+	 for(i = 0; i < MAX_FLOOR; i++){
+	    for(j = 0; j < num_people[i]; j++){
+	        if(elev.floor-i>0){
+			downwards++;
+			if(i>downwards_destination){
+			   downwards_destination = i;
+			}
+		}else if(elev.floor-i<0){
+			upwards++;
+			if(i<upwards_destination){
+			   upwards_destination = i;
+			}
 
+		}
+	    }
+	 }
+	 //only set the destination if there was someone found in that direction
+         if(upwards != 0 && downwards != 0){
+            if(elev.floor-downwards >= upwards-elev.floor){
+	       elev.next_floor = upwards_destination;
+	       elev.state = UP;
+	    }
+	    else{
+	       elev.next_floor = downwards_destination;
+	       elev.state = DOWN;
+	    }
+	    
+	 }else if(upwards == 0 && downwards == 0){
+	       elev.state = IDLE;
+	 }else if(upwards != 0){
+	    elev.next_floor = upwards_destination;
+	    elev.state = UP;
+	 }else{
+	    elev.next_floor = downwards_destination;
+	    elev.state = DOWN;
+	 }
+         }else{
+	    elev.state = IDLE;
+	 }
      }
 }
 
 
 int elevator_proc_open(struct inode *sp_inode, struct file *sp_file){
      char* tmp_mess;
-     printk(KERN_INFO "Trying to open proc/timed\n");
+     //printk(KERN_INFO "Trying to open proc/timed\n");
      read_p = 1;
      message = kmalloc(sizeof(char)*2000, __GFP_RECLAIM | __GFP_IO | __GFP_FS);
      tmp_mess = kmalloc(sizeof(char)*200, __GFP_RECLAIM | __GFP_IO | __GFP_FS);
      if (message == NULL){
-         printk(KERN_WARNING "my_xtimed couldn't allocate any memory for messages\n");
+         printk(KERN_WARNING "elevator couldn't allocate any memory for messages\n");
          return -ENOMEM;
      }
      switch(elev.state){
@@ -283,15 +337,21 @@ int elevator_proc_open(struct inode *sp_inode, struct file *sp_file){
 	     default: sprintf(message, "Error determining elevator state\n");
      			break;		      
      }
-     sprintf(tmp_mess,"Current floor: %d\n",elev.floor);
+     sprintf(tmp_mess,"Current floor: %d\n",elev.floor+1);
      message = strcat(message,tmp_mess);
-     sprintf(tmp_mess,"Next floor: %d\n",elev.next_floor);
+     sprintf(tmp_mess,"Next floor: %d\n",elev.next_floor+1);
      message = strcat(message,tmp_mess);
-     sprintf(tmp_mess,"People on elevator: %d\n",elev.num_people);
+     //sprintf(tmp_mess,"People on elevator: %d\n",elev.num_people);
+     //message = strcat(message,tmp_mess);
+     sprintf(tmp_mess,"Passenger weight: %d",elev.weight_units/2);
      message = strcat(message,tmp_mess);
-     sprintf(tmp_mess,"Passenger weight: %d\n",elev.pass_units);
+     if(elev.weight_units%2==1){
+        sprintf(tmp_mess,".5\n");
+     }else{
+        sprintf(tmp_mess,".0\n");
+     }
      message = strcat(message,tmp_mess);
-     sprintf(tmp_mess,"Passenger units: %d\n",elev.weight_units);
+     sprintf(tmp_mess,"Passenger units: %d\n",elev.pass_units);
      message = strcat(message,tmp_mess);
      sprintf(tmp_mess,"Floor\tLoad of Waiting\t\tServiced\n");
      message = strcat(message,tmp_mess);
@@ -311,28 +371,30 @@ ssize_t elevator_proc_read(struct file *sp_file, char __user *buf, size_t size, 
 	if(read_p){
 		return 0;
 	}
-        printk(KERN_INFO "proc called read\n");
+        //printk(KERN_INFO "proc called read\n");
         copy_to_user(buf, message, len);
         return len;
 }
 
 int elevator_proc_release(struct inode *sp_inode, struct file *sp_file) {
-        printk(KERN_NOTICE "proc called release\n");
+        //printk(KERN_NOTICE "proc called release\n");
         kfree(message);
         return 0;
 }
 
 int move_that_elevator(void *data){
 	while(!kthread_should_stop() || stopping){
-		ssleep(2);
+	        ssleep(2);
 		if(mutex_lock_interruptible(&thread1.my_mutex) == 0){
-			printk(KERN_ALERT "thread works fool ya fool\n");
+			//printk(KERN_ALERT "thread works fool ya fool\n");
 		}
 		//if the elevator has been requested to stop check that it isnt done yet
 		if(stopping){
 			if(elev.num_people == 0){
 			          stopping = false;
-				  elev.state = IDLE;
+				  elev.state = OFFLINE;
+		                  mutex_unlock(&thread1.my_mutex);
+				  return 1;
 			}
 		}
 		move();
@@ -346,35 +408,35 @@ int start_elevator(void){
      if(active==true){
         return 1;
      }else{
-	//allocating pointer of pointers for floors
-	floors = (struct person**)vmalloc(MAX_FLOOR*sizeof(struct person*));
-	number_serviced = (int*)vmalloc(MAX_FLOOR*sizeof(int));
-	if(floors == NULL){
-		printk(KERN_ALERT "memory allocation error\n");
-	   return -ENOMEM;
-	}
-	//initializing the array holding how many people are waiting to 0 and floors[0-9] to null
-	num_people = (int*)vmalloc(MAX_FLOOR*sizeof(int));
-	for(i = 0; i < MAX_FLOOR; i++){
-		floors[i] = NULL;
-		number_serviced[i] = 0;
-		num_people[i] = 0;
-	}
-	//initializing the elev.people array to be able to hold 8 people since thats the max with the current weight and size limit
-	elev.people = (struct person*)vmalloc(8*sizeof(struct person));
-	if(elev.people == NULL){
-		printk(KERN_ALERT "memory allocation error\n");
-	   return -ENOMEM;
-	}
-	if(floors == NULL || num_people == NULL || elev.people ==NULL){
-		printk(KERN_ALERT "memory allocation error\n");
-	}
-	//setting elevator starting states
+	////allocating pointer of pointers for floors
+	//floors = (struct person**)vmalloc(MAX_FLOOR*sizeof(struct person*));
+	//number_serviced = (int*)vmalloc(MAX_FLOOR*sizeof(int));
+	//if(floors == NULL){
+	//	printk(KERN_ALERT "memory allocation error\n");
+	//   return -ENOMEM;
+	//}
+	////initializing the array holding how many people are waiting to 0 and floors[0-9] to null
+	//num_people = (int*)vmalloc(MAX_FLOOR*sizeof(int));
+	//for(i = 0; i < MAX_FLOOR; i++){
+	//	floors[i] = NULL;
+	//	number_serviced[i] = 0;
+	//	num_people[i] = 0;
+	//}
+	////initializing the elev.people array to be able to hold 8 people since thats the max with the current weight and size limit
+	//elev.people = (struct person*)vmalloc(8*sizeof(struct person));
+	//if(elev.people == NULL){
+	//	printk(KERN_ALERT "memory allocation error\n");
+	//   return -ENOMEM;
+	//}
+	//if(floors == NULL || num_people == NULL || elev.people ==NULL){
+	//	printk(KERN_ALERT "memory allocation error\n");
+	//}
+	////setting elevator starting states
 	elev.state = IDLE;
-	elev.floor = 1;
-	elev.next_floor = 1;
-	elev.pass_units = 0;
-	elev.weight_units = 0;
+	//elev.floor = 1;
+	//elev.next_floor = 1;
+	//elev.pass_units = 0;
+	//elev.weight_units = 0;
 	active = true;
 
 	//starting the thread for the moving of the elevator
@@ -417,13 +479,14 @@ int issue_request(int a, int b, int c){
 			tmp[i].destination_floor = floors[b][i].destination_floor;
 		//	tmp[i].title = floors[b][i].title;
 		}
+		i = num_people[b];
 		if(a == ADULT){
 			tmp[i].weight = 2;
 			tmp[i].passenger = 1;
 			tmp[i].destination_floor = c;
 		//	tmp[i].title = a;
 		}else if(a == CHILD){
-			//TODO CHILD WEIGHT IS WRONG SHOULD BE 1/2
+			//we've changed everyones weight to double
 			tmp[i].weight = 1;
 			tmp[i].passenger = 1;
 			tmp[i].destination_floor = c;
@@ -439,6 +502,9 @@ int issue_request(int a, int b, int c){
 			tmp[i].destination_floor = c;
 		//	tmp[i].title = a;
 		}
+		else{
+		    printk("error who is this\n");
+		}
 		num_people[b]++;
 		if(floors[b]!=NULL){
 			vfree(floors[b]);
@@ -452,6 +518,10 @@ int issue_request(int a, int b, int c){
 int stop_elevator(void){
         stopping = true;
 	active = false;
+        int ret = kthread_stop(thread1.kthread);
+        if(ret != -EINTR){
+            printk("Thread stopped correctly\n");
+        }
 	return 0;
 }
 
@@ -459,6 +529,34 @@ static int __init elevator_init(void){
      //started elevator states
      active = false;
      stopping = false;
+     floors = (struct person**)vmalloc(MAX_FLOOR*sizeof(struct person*));
+        number_serviced = (int*)vmalloc(MAX_FLOOR*sizeof(int));
+        if(floors == NULL){
+                printk(KERN_ALERT "memory allocation error\n");
+           return -ENOMEM;
+        }
+        //initializing the array holding how many people are waiting to 0 and floors[0-9] to null
+        num_people = (int*)vmalloc(MAX_FLOOR*sizeof(int));
+        for(i = 0; i < MAX_FLOOR; i++){
+                floors[i] = NULL;
+                number_serviced[i] = 0;
+                num_people[i] = 0;
+        }
+        //initializing the elev.people array to be able to hold 8 people since thats the max with the current weight and size limit
+        elev.people = (struct person*)vmalloc(8*sizeof(struct person));
+        if(elev.people == NULL){
+                printk(KERN_ALERT "memory allocation error\n");
+           return -ENOMEM;
+        }
+        if(floors == NULL || num_people == NULL || elev.people ==NULL){
+                printk(KERN_ALERT "memory allocation error\n");
+        }
+        //setting elevator starting states
+        elev.floor = 0;
+        elev.next_floor = 0;
+        elev.pass_units = 0;
+        elev.weight_units = 0;
+
      elev.state = OFFLINE;
      elev.num_people = 0;
      STUB_start_elevator = &start_elevator;
@@ -482,10 +580,6 @@ static void __exit elevator_exit(void){
      printk(KERN_NOTICE "Removing /proc/%s\n", ENTRY_NAME);
      printk(KERN_ALERT "End of elevator\n");
      //requesting thread to stop
-     int ret = kthread_stop(thread1.kthread);
-     if(ret != -EINTR){
-         printk("the fool has been silenced\n");
-     }
      mutex_destroy(&thread1.my_mutex);
      STUB_start_elevator = NULL;
      STUB_stop_elevator = NULL;
@@ -494,7 +588,7 @@ static void __exit elevator_exit(void){
      for(i = 0; i < 10; i++){
      	vfree(floors[i]);
 	if(floors[i]==NULL){
-	   printk("YOOOO floor %d is good\n",i);
+	   //printk("YOOOO floor %d is good\n",i);
 	}
      }
      vfree(floors);
