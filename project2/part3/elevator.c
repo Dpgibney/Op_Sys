@@ -110,6 +110,8 @@ bool add_person_elevator(int person, int floor){
     //allocating memory for the swap
     struct person* for_elevator;
     struct person* for_floor;
+    for_floor = NULL;
+    for_elevator = NULL;
 
     //printk("testing %d %d\n",num_people[floor],elev.num_people);
         if(floors[floor][person].weight+elev.weight_units<=20 && floors[floor][person].passenger+elev.pass_units<=8 && !stopping){
@@ -201,7 +203,6 @@ void move(void){
      //current implementation ideas
      //the elevator goes to which ever floor people want or are waiting at in the current direction of travel until there are no more requests in that direction. Then check the other direction and if no one is found just idle
      int floor_difference;
-     int tmp;
      //upwards and downwards are used to dermine the magnitude of the distance of moving in either the upwards or downwards direction if the elevator currently doesnt know which way to go aka the else condition
      int upwards;
      int downwards;
@@ -516,9 +517,10 @@ int issue_request(int a, int b, int c){
 }
 
 int stop_elevator(void){
+	int ret;
         stopping = true;
 	active = false;
-        int ret = kthread_stop(thread1.kthread);
+        ret = kthread_stop(thread1.kthread);
         if(ret != -EINTR){
             printk("Thread stopped correctly\n");
         }
