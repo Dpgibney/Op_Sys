@@ -30,6 +30,7 @@ struct boot_sector_struct{
    uint16_t version;
    uint32_t cluster_num_root_dir_start;
    uint16_t first_logic_sector;
+   uint16_t filesystem_info;
    char* filename_of_weird_thing;
    uint8_t cf_24;
    uint8_t cf_25;
@@ -38,7 +39,29 @@ struct boot_sector_struct{
    char* cf_2b;
    char* cf_36;
 };
-
+int FATSz;
+int TotSec;
+int DataSec;
+int CountofClusters;
+int RootDirSectors;
+int FirstDataSector;
+int BPB_SecPerClus;
+//make it accept arguments for where to look making it do equivilent of ls . for now
+void ls(struct boot_sector_struct info, FILE *fptr){
+     unsigned long tmp = 512+(info.BPB_3.BPB_2.logical_sectors_per_cluster*info.BPB_3.BPB_2.bytes_per_logic);
+     fseek(fptr,tmp,SEEK_SET);
+     //char* tmp = (char*)malloc(info.BPB_3.BPB_2.logical_sectors_per_cluster);
+     unsigned int location = 0;
+     fread(&location,4,1,fptr);
+     printf("%x\n",location);
+      
+}
+unsigned int FATOffset(unsigned int N){
+    return 4*N;
+}
+unsigned int FirstSectorofCluster(unsigned int N){
+    return ((N-2)*BPB_SecPerClus)+FirstDataSector;
+}
 void get_info(struct boot_sector_struct info, FILE *fptr){
      if(fseek(fptr,11,SEEK_SET)==0){
         fread(&(info.BPB_3.BPB_2.bytes_per_logic),2,1,fptr);
@@ -60,14 +83,33 @@ void get_info(struct boot_sector_struct info, FILE *fptr){
         fread(&(info.version),2,1,fptr);
         fread(&(info.cluster_num_root_dir_start),4,1,fptr);
         fread(&(info.first_logic_sector),2,1,fptr);
+        fread(&(info.filesystem_info),2,1,fptr);
         fread((info.filename_of_weird_thing),12,1,fptr);
         fread(&(info.cf_24),1,1,fptr);
         fread(&(info.cf_25),1,1,fptr);
         fread(&(info.cf_26),1,1,fptr);
         fread(&(info.cf_27),4,1,fptr);
         fread((info.cf_2b),11,1,fptr);
-        fread(&(info.BPB_3.physical_sectors_per_track),2,1,fptr);
+        //fread(&(info.BPB_3.physical_sectors_per_track),2,1,fptr);
         fread((info.cf_36),8,1,fptr);
+        if(info.BPB_3.BPB_2.logic_sectors_fat12_16!=0){
+             FATSz = info.BPB_3.BPB_2.logical_sectors_per_cluster;
+        }else{
+             FATSz = info.logic_sectors_per_file_table;
+        }
+        if(info.BPB_3.BPB_2.total_logical_sectors!=0){
+             TotSec = info.BPB_3.BPB_2.total_logical_sectors;
+        }else{
+             TotSec = info.BPB_3.total_logical_sectors;
+        }
+        RootDirSectors = ((info.BPB_3.BPB_2.max_num_fat12_16_root_entries*32)+(info.BPB_3.BPB_2.bytes_per_logic-1))/info.BPB_3.BPB_2.bytes_per_logic;
+        
+        //Since for FAT32 it is always 0
+        RootDirSectors = 0;
+        FirstDataSector = info.BPB_3.BPB_2.reserved_logical_sectors + (info.BPB_3.BPB_2.num_file_allocation_tables * FATSz) + RootDirSectors;
+        DataSec = TotSec - FirstDataSector;
+        CountofClusters = DataSec / info.BPB_3.BPB_2.logical_sectors_per_cluster; 
+        BPB_SecPerClus = info.BPB_3.BPB_2.logical_sectors_per_cluster;
         printf("BPB 2.0\n");
         printf("bytes per logic: %u\n",info.BPB_3.BPB_2.bytes_per_logic);
         printf("logical sectors per cluster: %u\n",info.BPB_3.BPB_2.logical_sectors_per_cluster);
@@ -126,6 +168,8 @@ if(fptr==NULL){
    return -1;
 }
 get_info(info,fptr);
+printf("count of cluster %d\n",CountofClusters);
+
 //will grab newline as well be aware
 fgets(input_raw,MAX_INPUT_SIZE,stdin);
 sscanf(input_raw,"%s",input);
@@ -133,7 +177,7 @@ sscanf(input_raw,"%s",input);
 //main shell like loop to ask user what to do
 while(strcmp(input,"exit")!=0){
 printf("%s\n",input_raw);
-
+ls(info,fptr);
 
 //get new input from user
 fgets(input_raw,MAX_INPUT_SIZE,stdin);
