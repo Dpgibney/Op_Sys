@@ -40,7 +40,6 @@ struct boot_sector_struct{
 };
 
 void get_info(struct boot_sector_struct info, FILE *fptr){
-     char* buffer = (char*)malloc(512);
      if(fseek(fptr,11,SEEK_SET)==0){
         fread(&(info.BPB_3.BPB_2.bytes_per_logic),2,1,fptr);
         fread(&(info.BPB_3.BPB_2.logical_sectors_per_cluster),1,1,fptr);
@@ -193,6 +192,9 @@ free(input);
 free(input_raw);
 
 //TODO free malloc'd memory in struct
+free(info.filename_of_weird_thing);
+free(info.cf_2b);
+free(info.cf_36);
 
 //close file
 fclose(fptr);
