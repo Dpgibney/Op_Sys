@@ -144,6 +144,9 @@ int main(int argc,char *argv[]){
 char* input_raw = (char*)malloc(MAX_INPUT_SIZE*sizeof(char));
 char* input = (char*)malloc(MAX_INPUT_SIZE*sizeof(char));
 FILE *fptr;
+char* token;
+char* commands[5];
+int i = 0;
 printf("%s\n",argv[1]);
 printf("%d\n",argc);
 
@@ -182,6 +185,57 @@ ls(info,fptr);
 //get new input from user
 fgets(input_raw,MAX_INPUT_SIZE,stdin);
 sscanf(input_raw,"%s",input);
+	printf("%s\n",input_raw);
+	for(i=0; i < 5; i++){
+                commands[i] = 0;
+        }
+	i = 0;
+	token = strtok(input, " ");
+	while(token){
+		commands[i++] = token;
+		//printf("TOKEN %s\n", token);
+		token = strtok(NULL, " ");
+	}
+	/*for(i=0; i < 5; i++){
+		printf("ARRAY:%s\n",commands[i]);
+	}*/
+	if(strcmp(commands[0],"ls")==0){
+		printf("LS!!!\n");
+	}
+	else if(strcmp(commands[0],"cd")==0){
+                printf("CD!!!\n");
+        }
+	else if(strcmp(commands[0],"size")==0){
+                printf("SIZE!!!\n");
+        }
+	else if(strcmp(commands[0],"creat")==0){
+                printf("creat!!!\n");
+        }
+	else if(strcmp(commands[0],"mkdir")==0){
+                printf("MKDIR!!!\n");
+        }
+	else if(strcmp(commands[0],"open")==0){
+                printf("open!!!\n");
+        }
+	else if(strcmp(commands[0],"close")==0){
+                printf("close!!!\n");
+        }
+	else if(strcmp(commands[0],"read")==0){
+                printf("READ!!!\n");
+        }
+	else if(strcmp(commands[0],"write")==0){
+                printf("WRITE!!!\n");
+        }
+	else if(strcmp(commands[0],"rm")==0){
+                printf("RM!!!\n");
+        }
+	else if(strcmp(commands[0],"rmdir")==0){
+                printf("RMDIR!!!\n");
+        }
+
+	//get new input from user
+	fgets(input_raw,MAX_INPUT_SIZE,stdin);
+	sscanf(input_raw,"%s",input);
 }
 //free memory here
 free(input);
