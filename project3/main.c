@@ -5,39 +5,42 @@
 #include<stdint.h>
 #define MAX_INPUT_SIZE 200
 
-struct BPB_2_0{
-    uint16_t bytes_per_logic;
-    uint8_t logical_sectors_per_cluster;
-    uint16_t reserved_logical_sectors;
-    uint8_t num_file_allocation_tables;
-    uint16_t max_num_fat12_16_root_entries;
-    uint16_t total_logical_sectors;
-    uint8_t media_descriptor; 
-    uint16_t logic_sectors_fat12_16;
+struct __attribute__((__packed__)) boot_sector_struct{
+   uint16_t BPB_BytsPerSec;
+   uint8_t BPB_SecPerClus;
+   uint16_t BPB_RsvdSecCnt;
+   uint8_t BPB_NumFATs;
+   uint16_t BPB_RootEntCnt;
+   uint16_t BPB_TotSec16;
+   uint8_t BPB_Media;
+   uint16_t BPB_FATSz16;
+   uint16_t BPB_SecPerTrk;
+   uint16_t BPB_NumHeads;
+   uint32_t BPB_HiddSec;
+   uint32_t BPB_TotSec32;
+   uint32_t BPB_FATSz32;
+   uint16_t BPB_ExtFlags;
+   uint16_t BPB_FSVer;
+   uint32_t BPB_RootClus;
+   uint16_t BPB_FSInfo;
+   uint16_t BPB_BkBootSec;
+   uint8_t BPB_Reserved[12];
+   uint8_t BS_DrvNum;
+   uint8_t BS_Reserved1;
+   uint8_t BS_BootSig;
+   uint32_t BS_VolID;
+   uint8_t BS_VolLab[11];
+   uint8_t BS_FilSysType[8]; 
 };
 
-struct BPB_3_31{
-   struct BPB_2_0 BPB_2;
-   uint16_t physical_sectors_per_track;
-   uint16_t number_of_heads;
-   uint32_t count_hidden_sectors;
-   uint32_t total_logical_sectors;
-};
-struct boot_sector_struct{
-   struct BPB_3_31 BPB_3;
-   uint32_t logic_sectors_per_file_table;
-   uint16_t drive_description;
-   uint16_t version;
-   uint32_t cluster_num_root_dir_start;
-   uint16_t first_logic_sector;
-   uint16_t filesystem_info;
-   char* filename_of_weird_thing;
-   uint8_t cf_24;
-   uint8_t cf_25;
-   uint8_t cf_26;
-   uint32_t cf_27;
-   char* cf_2b;
-   char* cf_36;
+struct __attribute__((__packed__)) directory{
+   char name[11];
+   uint8_t attribute;
+   uint8_t empty[8];
+   uint16_t first_cluster_high;
+   uint8_t empty2[4];
+   uint16_t first_cluster_low;
+   uint32_t size;     
 };
 int FATSz;
 int TotSec;
@@ -46,9 +49,10 @@ int CountofClusters;
 int RootDirSectors;
 int FirstDataSector;
 int BPB_SecPerClus;
+int bytes_per_logic;
 //make it accept arguments for where to look making it do equivilent of ls . for now
 void ls(struct boot_sector_struct info, FILE *fptr){
-     unsigned long tmp = 512+(info.BPB_3.BPB_2.logical_sectors_per_cluster*info.BPB_3.BPB_2.bytes_per_logic);
+     unsigned long tmp = 0;
      fseek(fptr,tmp,SEEK_SET);
      //char* tmp = (char*)malloc(info.BPB_3.BPB_2.logical_sectors_per_cluster);
      unsigned int location = 0;
@@ -60,83 +64,50 @@ unsigned int FATOffset(unsigned int N){
     return 4*N;
 }
 unsigned int FirstSectorofCluster(unsigned int N){
-    return ((N-2)*BPB_SecPerClus)+FirstDataSector;
+    printf("%d\n",((N-2)*BPB_SecPerClus)+FirstDataSector);
+    return (((N-2)*BPB_SecPerClus)+FirstDataSector*bytes_per_logic);
 }
 void get_info(struct boot_sector_struct info, FILE *fptr){
      if(fseek(fptr,11,SEEK_SET)==0){
-        fread(&(info.BPB_3.BPB_2.bytes_per_logic),2,1,fptr);
-        fread(&(info.BPB_3.BPB_2.logical_sectors_per_cluster),1,1,fptr);
-        fread(&(info.BPB_3.BPB_2.reserved_logical_sectors),2,1,fptr);
-        fread(&(info.BPB_3.BPB_2.num_file_allocation_tables),1,1,fptr);
-        fread(&(info.BPB_3.BPB_2.max_num_fat12_16_root_entries),2,1,fptr);
-        fread(&(info.BPB_3.BPB_2.total_logical_sectors),2,1,fptr);
-        fread(&(info.BPB_3.BPB_2.media_descriptor),1,1,fptr);
-        fread(&(info.BPB_3.BPB_2.logic_sectors_fat12_16),2,1,fptr);
-        fseek(fptr,24,SEEK_SET);
-        fread(&(info.BPB_3.physical_sectors_per_track),2,1,fptr);
-        fread(&(info.BPB_3.number_of_heads),2,1,fptr);
-        fread(&(info.BPB_3.count_hidden_sectors),4,1,fptr);
-        fread(&(info.BPB_3.total_logical_sectors),4,1,fptr);
-        fseek(fptr,36,SEEK_SET);
-        fread(&(info.logic_sectors_per_file_table),4,1,fptr);
-        fread(&(info.drive_description),2,1,fptr);
-        fread(&(info.version),2,1,fptr);
-        fread(&(info.cluster_num_root_dir_start),4,1,fptr);
-        fread(&(info.first_logic_sector),2,1,fptr);
-        fread(&(info.filesystem_info),2,1,fptr);
-        fread((info.filename_of_weird_thing),12,1,fptr);
-        fread(&(info.cf_24),1,1,fptr);
-        fread(&(info.cf_25),1,1,fptr);
-        fread(&(info.cf_26),1,1,fptr);
-        fread(&(info.cf_27),4,1,fptr);
-        fread((info.cf_2b),11,1,fptr);
-        //fread(&(info.BPB_3.physical_sectors_per_track),2,1,fptr);
-        fread((info.cf_36),8,1,fptr);
-        if(info.BPB_3.BPB_2.logic_sectors_fat12_16!=0){
-             FATSz = info.BPB_3.BPB_2.logical_sectors_per_cluster;
-        }else{
-             FATSz = info.logic_sectors_per_file_table;
-        }
-        if(info.BPB_3.BPB_2.total_logical_sectors!=0){
-             TotSec = info.BPB_3.BPB_2.total_logical_sectors;
-        }else{
-             TotSec = info.BPB_3.total_logical_sectors;
-        }
-        RootDirSectors = ((info.BPB_3.BPB_2.max_num_fat12_16_root_entries*32)+(info.BPB_3.BPB_2.bytes_per_logic-1))/info.BPB_3.BPB_2.bytes_per_logic;
+        fread(&(info),79,1,fptr);
+        bytes_per_logic = info.BPB_BytsPerSec;
+        
+        //since only fat32 
+        FATSz = info.BPB_FATSz32;
+        TotSec = info.BPB_TotSec32;
         
         //Since for FAT32 it is always 0
         RootDirSectors = 0;
-        FirstDataSector = info.BPB_3.BPB_2.reserved_logical_sectors + (info.BPB_3.BPB_2.num_file_allocation_tables * FATSz) + RootDirSectors;
+
+        FirstDataSector = info.BPB_RsvdSecCnt + (info.BPB_NumFATs * FATSz);// + RootDirSectors;
         DataSec = TotSec - FirstDataSector;
-        CountofClusters = DataSec / info.BPB_3.BPB_2.logical_sectors_per_cluster; 
-        BPB_SecPerClus = info.BPB_3.BPB_2.logical_sectors_per_cluster;
-        printf("BPB 2.0\n");
-        printf("bytes per logic: %u\n",info.BPB_3.BPB_2.bytes_per_logic);
-        printf("logical sectors per cluster: %u\n",info.BPB_3.BPB_2.logical_sectors_per_cluster);
-        printf("reserved_logical_sectors: %u\n",info.BPB_3.BPB_2.reserved_logical_sectors);
-        printf("number of file allocation tables: %u\n",info.BPB_3.BPB_2.num_file_allocation_tables);
-        printf("max number of fat12/16 root entries: %u\n",info.BPB_3.BPB_2.max_num_fat12_16_root_entries);
-        printf("total logical sectors: %u\n",info.BPB_3.BPB_2.total_logical_sectors);
-        printf("media descriptors: %x\n",info.BPB_3.BPB_2.media_descriptor);
-        printf("logical sectors fat12/16: %u\n",info.BPB_3.BPB_2.logic_sectors_fat12_16);
-        printf("BPB 3.0\n");
-        printf("physical sectors per track: %u\n",info.BPB_3.physical_sectors_per_track);
-        printf("number of heads: %u\n",info.BPB_3.number_of_heads);
-        printf("count hidden sectors: %u\n",info.BPB_3.count_hidden_sectors);
-        printf("total logical sectors: %u\n",info.BPB_3.total_logical_sectors);
-        printf("FAT32 boot\n");
-        printf("logic sectors per file table: %u\n",info.logic_sectors_per_file_table);
-        printf("drive description: %u\n",info.drive_description);
-        printf("version: %u\n",info.version);
-        printf("cluster number root dir start: %u\n",info.cluster_num_root_dir_start);
-        printf("first logic sector: %u\n",info.first_logic_sector);
-        printf("reserved: %s\n",info.filename_of_weird_thing);
-        printf("cf_24: %u\n",info.cf_24);
-        printf("cf_25: %u\n",info.cf_25);
-        printf("cf_26: %u\n",info.cf_26);
-        printf("cf_27: %u\n",info.cf_27);
-        printf("cf_2b: %s\n",info.cf_2b);
-        printf("cf_36: %s\n",info.cf_36);
+        CountofClusters = DataSec / info.BPB_SecPerClus; 
+        BPB_SecPerClus = info.BPB_SecPerClus;
+        
+        printf("bytes per logic: %u\n",info.BPB_BytsPerSec);
+        printf("logical sectors per cluster: %u\n",info.BPB_SecPerClus);
+        printf("reserved_logical_sectors: %u\n",info.BPB_RsvdSecCnt);
+        printf("number of file allocation tables: %u\n",info.BPB_NumFATs);
+        printf("max number of fat12/16 root entries: %u\n",info.BPB_RootEntCnt);
+        printf("total logical sectors: %u\n",info.BPB_TotSec16);
+        printf("media descriptors: %x\n",info.BPB_Media);
+        printf("logical sectors fat12/16: %u\n",info.BPB_FATSz16);
+        printf("physical sectors per track: %u\n",info.BPB_SecPerTrk);
+        printf("number of heads: %u\n",info.BPB_NumHeads);
+        printf("count hidden sectors: %u\n",info.BPB_HiddSec);
+        printf("total logical sectors: %u\n",info.BPB_TotSec32);
+        printf("logic sectors per file table: %u\n",info.BPB_FATSz32);
+        printf("drive description: %u\n",info.BPB_ExtFlags);
+        printf("version: %u\n",info.BPB_FSVer);
+        printf("cluster number root dir start: %u\n",info.BPB_RootClus);
+        printf("first logic sector: %u\n",info.BPB_FSInfo);
+        printf("reserved: %s\n",info.BPB_Reserved);
+        printf("cf_24: %u\n",info.BS_DrvNum);
+        printf("cf_25: %u\n",info.BS_Reserved1);
+        printf("cf_26: %u\n",info.BS_BootSig);
+        printf("cf_27: %u\n",info.BS_VolID);
+        printf("cf_2b: %s\n",info.BS_VolLab);
+        printf("cf_36: %s\n",info.BS_FilSysType);
         
      }
 }
@@ -158,9 +129,9 @@ if(argc!=2){
 
 //creating struct to hold info about filesystem one extra space for endline;
 struct boot_sector_struct info;
-info.filename_of_weird_thing = (char*)malloc(12);
-info.cf_2b = (char*)malloc(11);
-info.cf_36 = (char*)malloc(8);
+//info.BPB_Reserved = (char*)malloc(12);
+//info.BS_VolLab = (char*)malloc(11);
+//info.BS_FilSysType = (char*)malloc(8);
 
 
 //check that file could open
@@ -196,11 +167,18 @@ sscanf(input_raw,"%s",input);
 		//printf("TOKEN %s\n", token);
 		token = strtok(NULL, " ");
 	}
-	/*for(i=0; i < 5; i++){
+	/*for(i = 0; i < 5; i++){
 		printf("ARRAY:%s\n",commands[i]);
 	}*/
 	if(strcmp(commands[0],"ls")==0){
 		printf("LS!!!\n");
+                struct directory dir;
+                fseek(fptr,FirstSectorofCluster(2),SEEK_SET);
+                for(int i = 0; i < 16; i++){
+                fread(&dir,32,1,fptr);
+                dir.name[10] = '\0';
+                printf("%s\n",dir.name);
+                }
 	}
 	else if(strcmp(commands[0],"cd")==0){
                 printf("CD!!!\n");
@@ -242,9 +220,9 @@ free(input);
 free(input_raw);
 
 //TODO free malloc'd memory in struct
-free(info.filename_of_weird_thing);
-free(info.cf_2b);
-free(info.cf_36);
+//free(info.BPB_Reserved);
+//free(info.BS_VolLab);
+//free(info.BS_FilSysType);
 
 //close file
 fclose(fptr);
