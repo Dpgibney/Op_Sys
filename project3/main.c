@@ -3,6 +3,7 @@
 #include<string.h>
 #include<stdlib.h>
 #include<stdint.h>
+#include<ctype.h>
 #define MAX_INPUT_SIZE 200
 
 struct __attribute__((__packed__)) boot_sector_struct{
@@ -34,7 +35,8 @@ struct __attribute__((__packed__)) boot_sector_struct{
 };
 
 struct __attribute__((__packed__)) directory{
-        char name[11];
+        char name[8];
+        char extention[3];
         uint8_t attribute;
         uint8_t empty[8];
         uint16_t first_cluster_high;
@@ -59,47 +61,47 @@ unsigned int FirstSectorofCluster(unsigned int N){
         return (((N-2)*BPB_SecPerClus)+FirstDataSector*bytes_per_logic);
 }
 
-void get_info(struct boot_sector_struct info, FILE *fptr){
+void get_info(struct boot_sector_struct* info, FILE *fptr){
         if(fseek(fptr,11,SEEK_SET)==0){
-                fread(&(info),79,1,fptr);
-                bytes_per_logic = info.BPB_BytsPerSec;
+                fread(&(*info),79,1,fptr);
+                bytes_per_logic = info->BPB_BytsPerSec;
 
                 //since only fat32 
-                FATSz = info.BPB_FATSz32;
-                TotSec = info.BPB_TotSec32;
+                FATSz = info->BPB_FATSz32;
+                TotSec = info->BPB_TotSec32;
 
                 //Since for FAT32 it is always 0
                 RootDirSectors = 0;
 
-                FirstDataSector = info.BPB_RsvdSecCnt + (info.BPB_NumFATs * FATSz);
+                FirstDataSector = info->BPB_RsvdSecCnt + (info->BPB_NumFATs * FATSz);
                 DataSec = TotSec - FirstDataSector;
-                CountofClusters = DataSec / info.BPB_SecPerClus; 
-                BPB_SecPerClus = info.BPB_SecPerClus;
+                CountofClusters = DataSec / info->BPB_SecPerClus; 
+                BPB_SecPerClus = info->BPB_SecPerClus;
 
-                printf("BPB_BytsPerSec:\t\t %u\n",info.BPB_BytsPerSec);
-                printf("BPB_SecPerClus:\t\t %u\n",info.BPB_SecPerClus);
-                printf("BPB_RsvdSecCnt:\t\t %u\n",info.BPB_RsvdSecCnt);
-                printf("BPB_NumFATS:\t\t %u\n",info.BPB_NumFATs);
-                printf("BPB_RootEntCnt:\t\t %u\n",info.BPB_RootEntCnt);
-                printf("BPB_TotSec16:\t\t %u\n",info.BPB_TotSec16);
-                printf("BPB_Media:\t\t %x\n",info.BPB_Media);
-                printf("BPB_FATSz16:\t\t %u\n",info.BPB_FATSz16);
-                printf("BPB_SecPerTrk:\t\t %u\n",info.BPB_SecPerTrk);
-                printf("BPB_NumHeads:\t\t %u\n",info.BPB_NumHeads);
-                printf("BPB_HiddSec:\t\t %u\n",info.BPB_HiddSec);
-                printf("BPB_TotSec32:\t\t %u\n",info.BPB_TotSec32);
-                printf("BPB_FATSz32:\t\t %u\n",info.BPB_FATSz32);
-                printf("BPB_ExtFlags:\t\t %u\n",info.BPB_ExtFlags);
-                printf("BPB_FSVer:\t\t %u\n",info.BPB_FSVer);
-                printf("BPB_RootClus:\t\t %u\n",info.BPB_RootClus);
-                printf("BPB_FSInfo:\t\t %u\n",info.BPB_FSInfo);
-                printf("BPB_Reserved:\t\t %s\n",info.BPB_Reserved);
-                printf("BS_DrvNum:\t\t %u\n",info.BS_DrvNum);
-                printf("BS_Reserved1:\t\t %u\n",info.BS_Reserved1);
-                printf("BS_BootSig:\t\t %u\n",info.BS_BootSig);
-                printf("BS_VolID:\t\t %u\n",info.BS_VolID);
-                printf("BS_VolLab:\t\t %s\n",info.BS_VolLab);
-                printf("BS_FilSysType:\t\t %s\n",info.BS_FilSysType);
+                printf("BPB_BytsPerSec:\t\t %u\n",info->BPB_BytsPerSec);
+                printf("BPB_SecPerClus:\t\t %u\n",info->BPB_SecPerClus);
+                printf("BPB_RsvdSecCnt:\t\t %u\n",info->BPB_RsvdSecCnt);
+                printf("BPB_NumFATS:\t\t %u\n",info->BPB_NumFATs);
+                printf("BPB_RootEntCnt:\t\t %u\n",info->BPB_RootEntCnt);
+                printf("BPB_TotSec16:\t\t %u\n",info->BPB_TotSec16);
+                printf("BPB_Media:\t\t %x\n",info->BPB_Media);
+                printf("BPB_FATSz16:\t\t %u\n",info->BPB_FATSz16);
+                printf("BPB_SecPerTrk:\t\t %u\n",info->BPB_SecPerTrk);
+                printf("BPB_NumHeads:\t\t %u\n",info->BPB_NumHeads);
+                printf("BPB_HiddSec:\t\t %u\n",info->BPB_HiddSec);
+                printf("BPB_TotSec32:\t\t %u\n",info->BPB_TotSec32);
+                printf("BPB_FATSz32:\t\t %u\n",info->BPB_FATSz32);
+                printf("BPB_ExtFlags:\t\t %u\n",info->BPB_ExtFlags);
+                printf("BPB_FSVer:\t\t %u\n",info->BPB_FSVer);
+                printf("BPB_RootClus:\t\t %u\n",info->BPB_RootClus);
+                printf("BPB_FSInfo:\t\t %u\n",info->BPB_FSInfo);
+                printf("BPB_Reserved:\t\t %s\n",info->BPB_Reserved);
+                printf("BS_DrvNum:\t\t %u\n",info->BS_DrvNum);
+                printf("BS_Reserved1:\t\t %u\n",info->BS_Reserved1);
+                printf("BS_BootSig:\t\t %u\n",info->BS_BootSig);
+                printf("BS_VolID:\t\t %u\n",info->BS_VolID);
+                printf("BS_VolLab:\t\t %s\n",info->BS_VolLab);
+                printf("BS_FilSysType:\t\t %s\n",info->BS_FilSysType);
                 printf("\n\n");
 
         }else{
@@ -107,16 +109,49 @@ void get_info(struct boot_sector_struct info, FILE *fptr){
         }
 }
 
-void ls(FILE *fptr, int N){
+void ls(FILE *fptr, int N, struct boot_sector_struct* info){
         //to hold file attributes
         struct directory dir;
-
+        
+        //to hold file name and extention
+        char tmp[13];
+        int length = 8;
+       
         //go to cluster and read out the files in it
         fseek(fptr,FirstSectorofCluster(N),SEEK_SET);
-        for(int i = 0; i < 16; i++){
+
+        //so that it will check the sector fully
+        //printf("%d\n",info->BPB_BytsPerSec/32);
+        for(int i = 0; i < (info->BPB_BytsPerSec/32); i++){
                 fread(&dir,32,1,fptr);
-                dir.name[10] = '\0';
-                printf("%s\n",dir.name);
+                for(int i = 0; i < 8; i++){
+                    if(dir.name[i]==' '){
+                        length = i;
+                        break;
+                    }
+                }
+                if(dir.attribute != 0x02 && dir.attribute != 0x10 && dir.attribute != 0x80 && dir.attribute != 0x0F){
+                    memcpy(tmp,dir.name,length);
+                    if(dir.extention[0]==' '){
+                        tmp[length] = '\0';
+                    }else{
+                        tmp[length] = '.';
+                        memcpy(&tmp[length+1],dir.extention,3);
+                        tmp[length+4] = '\0';
+                    }
+                    for(int i = 0; i < 12; i++){
+                        tmp[i] = tolower(tmp[i]);
+                    } 
+                    printf("%s\n",tmp);
+                    //printf("%x\n",dir.attribute);
+                }else if(dir.attribute == 0x10){
+                    memcpy(tmp,dir.name,length);
+                    for(int i = 0; i < length; i++){
+                        tmp[i] = tolower(tmp[i]);
+                    } 
+                    tmp[length] = '\0';
+                    printf("%s\n",tmp);
+                }
         } 
 }
 
@@ -145,7 +180,7 @@ int main(int argc,char *argv[]){
                 return -1;
         }
         //parse boot sector
-        get_info(info,fptr);
+        get_info(&info,fptr);
 
         //will grab newline as well be aware
         fgets(input_raw,MAX_INPUT_SIZE,stdin);
@@ -169,7 +204,7 @@ int main(int argc,char *argv[]){
                 if(strcmp(commands[0],"ls")==0){
                         printf("LS!!!\n");
                         //2 is a place holder sector to print out currently that is root
-                        ls(fptr,2);
+                        ls(fptr,2,&info);
                 }
                 else if(strcmp(commands[0],"cd")==0){
                         printf("CD!!!\n");
