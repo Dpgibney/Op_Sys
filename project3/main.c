@@ -202,7 +202,7 @@ int main(int argc,char *argv[]){
                   printf("ARRAY:%s\n",commands[i]);
                   }*/
                 if(strcmp(commands[0],"ls")==0){
-                        printf("LS!!!\n");
+                        printf("ls is not done. It will only print out first cluster files. Fix this when cd is working so that it is testable\n");
                         //2 is a place holder sector to print out currently that is root
                         ls(fptr,2,&info);
                 }
