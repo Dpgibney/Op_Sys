@@ -54,6 +54,7 @@ int FirstDataSector;
 int BPB_SecPerClus;
 int bytes_per_logic;
 
+
 //just for compiling for the create function david will have to change this
 unsigned int current_dir_fat;
 unsigned int start_dir_fat;
@@ -264,9 +265,27 @@ int main(int argc,char *argv[]){
                 }
                 else if(strcmp(commands[0],"open")==0){
                         printf("open!!!\n");
+			if(commands[1]==NULL){
+				printf("Must enter a filename\n");
+			}
+			else{
+				if(commands[2]==NULL){
+					printf("Must enter a mode\n");
+				}
+				else if(commands[3]==NULL){
+					printf("OPEN func");
+					open(
+				}
+			}
                 }
                 else if(strcmp(commands[0],"close")==0){
                         printf("close!!!\n");
+			if(commands[1]==NULL){
+				printf("Must enter a filename\n");
+			}
+			else if(commands[2]==NULL){
+				printf("Close FUNC");
+			}
                 }
                 else if(strcmp(commands[0],"read")==0){
                         printf("READ!!!\n");
