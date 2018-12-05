@@ -4,6 +4,7 @@
 #include<stdlib.h>
 #include<stdint.h>
 #include<ctype.h>
+#include<string.h>
 #define MAX_INPUT_SIZE 200
 
 struct __attribute__((__packed__)) boot_sector_struct{
@@ -53,12 +54,21 @@ int FirstDataSector;
 int BPB_SecPerClus;
 int bytes_per_logic;
 
-unsigned int FATOffset(unsigned int N){
-        return 4*N;
+//just for compiling for the create function david will have to change this
+unsigned int current_dir_fat;
+unsigned int start_dir_fat;
+
+unsigned int ThisFATSecNum(unsigned int N, struct boot_sector_struct* info){
+        return (info->BPB_RsvdSecCnt+((4*N)/info->BPB_BytsPerSec))*512;
+}
+
+unsigned int ThisFATEntOffset(unsigned int N, struct boot_sector_struct* info){
+        return (4*N)%info->BPB_BytsPerSec;
 }
 
 unsigned int FirstSectorofCluster(unsigned int N){
-        return (((N-2)*BPB_SecPerClus)+FirstDataSector*bytes_per_logic);
+        printf("first sector%x\n",(((N-2)*BPB_SecPerClus)*bytes_per_logic+FirstDataSector*bytes_per_logic));
+        return (((N-2)*BPB_SecPerClus)*bytes_per_logic+FirstDataSector*bytes_per_logic);
 }
 
 void get_info(struct boot_sector_struct* info, FILE *fptr){
@@ -77,7 +87,10 @@ void get_info(struct boot_sector_struct* info, FILE *fptr){
                 DataSec = TotSec - FirstDataSector;
                 CountofClusters = DataSec / info->BPB_SecPerClus; 
                 BPB_SecPerClus = info->BPB_SecPerClus;
-
+                //current_dir_fat = info->BPB_RsvdSecCnt * info->BPB_BytsPerSec;
+                start_dir_fat = ThisFATSecNum(2,info) + ThisFATEntOffset(2,info);
+                current_dir_fat = start_dir_fat;
+                //start_dir_fat = 16396;
                 printf("BPB_BytsPerSec:\t\t %u\n",info->BPB_BytsPerSec);
                 printf("BPB_SecPerClus:\t\t %u\n",info->BPB_SecPerClus);
                 printf("BPB_RsvdSecCnt:\t\t %u\n",info->BPB_RsvdSecCnt);
@@ -121,7 +134,7 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
         fseek(fptr,FirstSectorofCluster(N),SEEK_SET);
 
         //so that it will check the sector fully
-        //printf("%d\n",info->BPB_BytsPerSec/32);
+        printf("what is n%d\n",N);
         for(int i = 0; i < (info->BPB_BytsPerSec/32); i++){
                 fread(&dir,32,1,fptr);
                 for(int i = 0; i < 8; i++){
@@ -155,6 +168,10 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
         } 
 }
 
+void create(char* filename, struct boot_sector_struct* info, FILE* fptri, unsigned int cluster_num){
+                
+}
+
 int main(int argc,char *argv[]){
         char* input_raw = (char*)malloc(MAX_INPUT_SIZE*sizeof(char));
         char* input = (char*)malloc(MAX_INPUT_SIZE*sizeof(char));
@@ -185,26 +202,47 @@ int main(int argc,char *argv[]){
         //will grab newline as well be aware
         fgets(input_raw,MAX_INPUT_SIZE,stdin);
         sscanf(input_raw,"%s",input);
+        input_raw[strlen(input_raw)-1] = '\0';
 
         //main shell like loop to ask user what to do
         while(strcmp(input,"exit")!=0){
-                for(i=0; i < 5; i++){
+                for(int i=0; i < 5; i++){
                         commands[i] = 0;
                 }
                 i = 0;
-                token = strtok(input, " ");
-                while(token){
+                token = strtok(input_raw, " ");
+                while(token!=NULL){
                         commands[i++] = token;
-                        //printf("TOKEN %s\n", token);
+                        printf("TOKEN %s\n", token);
                         token = strtok(NULL, " ");
                 }
-                /*for(i = 0; i < 5; i++){
+                for(int i = 0; i < 5; i++){
                   printf("ARRAY:%s\n",commands[i]);
-                  }*/
+                  }
                 if(strcmp(commands[0],"ls")==0){
-                        printf("ls is not done. It will only print out first cluster files. Fix this when cd is working so that it is testable\n");
-                        //2 is a place holder sector to print out currently that is root
-                        ls(fptr,2,&info);
+                        uint32_t tmp1_6;
+                        uint32_t tmp;
+                        uint32_t tmp7_31;
+                        uint32_t dir_on = current_dir_fat;
+                        //printf("current dir%x\n",current_dir_fat);
+                        //printf("%d\n",start_dir_fat);
+                        //printf("ls is not done. It will only print out first cluster files. Fix this when cd is working so that it is testable\n");
+                        do{
+                        fseek(fptr,dir_on,SEEK_SET);
+                        fread(&(tmp),4,1,fptr);
+                        //printf("%x\n",tmp1_6);
+                        //printf("%x\n",tmp7_31);
+                        tmp7_31 = (tmp << 6) >> 6;
+                        tmp1_6 = tmp >> 26;
+                        //printf("tmp1_6%x\n",tmp1_6);
+                        //printf("tmp7_31%x\n",tmp7_31);
+                        //printf("current dir%x\n",current_dir_fat);
+                        //currently assuming all in the same fat
+                            ls(fptr,((dir_on-start_dir_fat)/4+2),&info);
+                            if(tmp < 0x0FFFFFF8){
+                                dir_on = start_dir_fat + (tmp1_6*4);
+                            }
+                        }while(tmp < 0x0FFFFFF8);
                 }
                 else if(strcmp(commands[0],"cd")==0){
                         printf("CD!!!\n");
@@ -214,6 +252,12 @@ int main(int argc,char *argv[]){
                 }
                 else if(strcmp(commands[0],"creat")==0){
                         printf("creat!!!\n");
+                        if(commands[1]==NULL){
+                              printf("Must enter a filename\n");
+                        }else{
+                              create(commands[1],&info,fptr,current_dir_fat);
+                                               
+                        }
                 }
                 else if(strcmp(commands[0],"mkdir")==0){
                         printf("MKDIR!!!\n");
@@ -240,6 +284,7 @@ int main(int argc,char *argv[]){
                 //get new input from user
                 fgets(input_raw,MAX_INPUT_SIZE,stdin);
                 sscanf(input_raw,"%s",input);
+                input_raw[strlen(input_raw)-1] = '\0';
         }
         //free memory here
         free(input);
