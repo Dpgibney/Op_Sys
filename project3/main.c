@@ -504,7 +504,14 @@ int main(int argc,char *argv[]){
 			}
 		}
 		else if(strcmp(commands[0],"mkdir")==0){
-			printf("MKDIR!!!\n");
+                        if(commands[1]==NULL){
+                                printf("Must enter a filename\n");
+                        }else{
+			unsigned int empty = find_empty_cluster(current_dir_fat,&info,fptr, commands[1]);
+		          	printf("empty: %x",empty);
+		          	mkdir(commands[1],&info,fptr,empty);
+		          	printf("MKDIR!!!\n");
+                        }
 		}
 		else if(strcmp(commands[0],"open")==0){
 			printf("open!!!\n");
