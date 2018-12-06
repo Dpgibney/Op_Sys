@@ -672,22 +672,32 @@ int main(int argc,char *argv[]){
 			if(commands[1]==NULL){
 				printf("Must enter a filename\n");
 			}
-			else if(commands[2]==NULL){
-				printf("Close FUNC");
-			}
-                }
-                else if(strcmp(commands[0],"read")==0){
-                        printf("READ!!!\n");
-                }
-                else if(strcmp(commands[0],"write")==0){
-                        printf("WRITE!!!\n");
-                }
-                else if(strcmp(commands[0],"rm")==0){
-                        printf("RM!!!\n");
-                }
-                else if(strcmp(commands[0],"rmdir")==0){
-                        printf("RMDIR!!!\n");
-                }
+		}
+		else if(strcmp(commands[0],"mkdir")==0){
+                        if(commands[1]==NULL){
+                                printf("Must enter a filename\n");
+                        }else{
+			unsigned int empty = find_empty_cluster(current_dir_fat,&info,fptr, commands[1]);
+		          	printf("empty: %x",empty);
+		          	mkdir(commands[1],&info,fptr,empty);
+		          	printf("MKDIR!!!\n");
+                        }
+		}
+		else if(strcmp(commands[0],"open")==0){
+			printf("open!!!\n");
+		}
+		else if(strcmp(commands[0],"read")==0){
+			printf("READ!!!\n");
+		}
+		else if(strcmp(commands[0],"write")==0){
+			printf("WRITE!!!\n");
+		}
+		else if(strcmp(commands[0],"rm")==0){
+			printf("RM!!!\n");
+		}
+		else if(strcmp(commands[0],"rmdir")==0){
+			printf("RMDIR!!!\n");
+		}
 
 		//get new input from user
 		fgets(input_raw,MAX_INPUT_SIZE,stdin);
