@@ -54,6 +54,12 @@ int FirstDataSector;
 int BPB_SecPerClus;
 int bytes_per_logic;
 
+//struct for storing open files
+struct openfiles{
+	int val;
+	int mode;
+	unsigned int first_cluster_num;
+};
 
 //just for compiling for the create function david will have to change this
 unsigned int current_dir_fat;
@@ -260,6 +266,13 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
 void create(char* filename, struct boot_sector_struct* info, FILE* fptri, unsigned int cluster_num){
 }
 
+void openfile(char* filename, int mode, struct openfiles*  of){
+	if(mode == 0){
+		printf("Invalid mode\n");
+	}
+	
+}	
+
 int main(int argc,char *argv[]){
         char* input_raw = (char*)malloc(MAX_INPUT_SIZE*sizeof(char));
         char* input = (char*)malloc(MAX_INPUT_SIZE*sizeof(char));
@@ -267,6 +280,8 @@ int main(int argc,char *argv[]){
         char* token;
         char* commands[5];
         int i = 0;
+	struct openfiles * openfs = NULL;
+	int mode = 0;
 
         //check that a file was passed as an argument
         if(argc!=2){
@@ -367,8 +382,24 @@ int main(int argc,char *argv[]){
 					printf("Must enter a mode\n");
 				}
 				else if(commands[3]==NULL){
-					printf("OPEN func");
-					open(
+					printf("OPEN func\n");
+					if(strcmp(commands[2],"w")==0){
+						mode = 1;
+					}
+					else if(strcmp(commands[2], "r")==0){
+						mode = 2;
+					}
+					else if(strcmp(commands[2], "rw")==0){
+						mode = 3;
+					}
+					else if(strcmp(commands[2], "wr")==0){
+						mode = 3;
+					}
+					else{
+						mode = 0;
+					}
+					printf("Mode: %d\n", mode);
+					openfile(commands[1], mode, openfs);	
 				}
 			}
                 }
