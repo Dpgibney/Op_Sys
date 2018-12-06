@@ -7,7 +7,14 @@
 #include<string.h>
 #include<stdbool.h>
 #define MAX_INPUT_SIZE 200
-
+#define ATTR_READ_ONLY 0x01
+#define ATTR_HIDDEN    0x02
+#define ATTR_SYSTEM    0x04
+#define ATTR_VOLUME_ID 0x08
+#define ATTR_DIRECTORY 0x10
+#define ATTR_ARCHIVE   0x20
+#define ATTR_LONG_NAME 0x0F
+#define END_FAT        0x0FFFFFF8
 struct __attribute__((__packed__)) boot_sector_struct{
         uint16_t BPB_BytsPerSec;
         uint8_t BPB_SecPerClus;
@@ -41,10 +48,21 @@ struct __attribute__((__packed__)) directory{
         char extention[3];
         uint8_t attribute;
         uint8_t empty[8];
-        uint16_t first_cluster_high;
+        int16_t first_cluster_high;
         uint8_t empty2[4];
         uint16_t first_cluster_low;
         uint32_t size;     
+};
+
+struct __attribute__((__packed__)) long_name{
+        uint8_t LDIR_Ord;
+        char LDIR_Name1[10];
+        uint8_t LDIR_Attr;
+        uint8_t LDIR_Type;
+        uint8_t LDIR_Chksum;
+        char LDIR_Name2[12];
+        uint16_t LDIR_FstClusLO;
+        uint32_t LDIR_Name3;       
 };
 int FATSz;
 int TotSec;
@@ -76,7 +94,6 @@ unsigned int ThisFATEntOffset(unsigned int N, struct boot_sector_struct* info){
 
 
 unsigned int FirstSectorofCluster(unsigned int N){
-        printf("First Sector: %x\n",(((N-2)*BPB_SecPerClus)*bytes_per_logic+FirstDataSector*bytes_per_logic));
         return (((N-2)*BPB_SecPerClus)*bytes_per_logic+FirstDataSector*bytes_per_logic);
 }
 
@@ -87,7 +104,6 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
         unsigned int tmp;
         char tmp1[13];
         do{
-        printf("dir on %x\n",dir_on);
         fseek(fptr,dir_on,SEEK_SET);
         fread(&(tmp),4,1,fptr);
         struct directory dir;
@@ -95,6 +111,7 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
         fseek(fptr,FirstSectorofCluster((dir_on-start_dir_fat)/4+2),SEEK_SET);
         return_dir = FirstSectorofCluster((dir_on-start_dir_fat)/4+2);
         int length = 8;
+        
         //so that it will check the sector fully
         for(int i = 0; i < (info->BPB_BytsPerSec/32); i++){
                 fread(&dir,32,1,fptr);
@@ -105,7 +122,7 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
                         break;
                     }
                 }
-                if(dir.attribute != 0x02 && dir.attribute != 0x10 && dir.attribute != 0x80 && dir.attribute != 0x0F){
+                if(dir.attribute != ATTR_HIDDEN && dir.attribute != ATTR_DIRECTORY && dir.attribute != 0x80 && dir.attribute != ATTR_LONG_NAME){
                     memcpy(tmp1,dir.name,length);
                     if(dir.extention[0]==' '){
                         tmp1[length] = '\0';
@@ -117,7 +134,6 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
                     for(int i = 0; i < 12; i++){
                         tmp1[i] = tolower(tmp1[i]);
                     } 
-                    printf("tmp1 %s\n",tmp1);
                     if(strcmp(tmp1,filename)==0){
                        return -1;
                     }    
@@ -126,13 +142,22 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
                 }
                 return_dir += 32;
         }
-        if(tmp < 0x0FFFFFF8){
+        if(tmp < END_FAT){
             dir_on = start_dir_fat + (tmp*4-8);
         }
-        }while(tmp < 0x0FFFFFF8);
+        }while(tmp < END_FAT);
 }
 
-
+unsigned char ChkSum (unsigned char *name){
+      short FcbNameLen;
+      unsigned char Sum;
+ 
+      Sum = 0;
+      for(FcbNameLen=11; FcbNameLen!=0; FcbNameLen--){
+          Sum = ((Sum & 1) ? 0x80 : 0) + (Sum >> 1) + *name++;
+      }
+      return (Sum);
+}
 
 void get_info(struct boot_sector_struct* info, FILE *fptr){
         if(fseek(fptr,11,SEEK_SET)==0){
@@ -150,13 +175,9 @@ void get_info(struct boot_sector_struct* info, FILE *fptr){
                 DataSec = TotSec - FirstDataSector;
                 CountofClusters = DataSec / info->BPB_SecPerClus; 
                 BPB_SecPerClus = info->BPB_SecPerClus;
-                //current_dir_fat = info->BPB_RsvdSecCnt * info->BPB_BytsPerSec;
                 start_dir_fat = ThisFATSecNum(2,info) + ThisFATEntOffset(2,info);
-  
-                //for testing the red directory with ls change the 2 to 3
                 current_dir_fat = ThisFATSecNum(2,info) + ThisFATEntOffset(2,info);
-                //current_dir_fat = start_dir_fat;
-                //start_dir_fat = 16396;
+
                 printf("BPB_BytsPerSec:\t\t %u\n",info->BPB_BytsPerSec);
                 printf("BPB_SecPerClus:\t\t %u\n",info->BPB_SecPerClus);
                 printf("BPB_RsvdSecCnt:\t\t %u\n",info->BPB_RsvdSecCnt);
@@ -200,7 +221,6 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
         fseek(fptr,FirstSectorofCluster(N),SEEK_SET);
 
         //so that it will check the sector fully
-        printf("what is n%d\n",N);
         for(int i = 0; i < (info->BPB_BytsPerSec/32); i++){
                 fread(&dir,32,1,fptr);
                 for(int i = 0; i < 8; i++){
@@ -209,7 +229,7 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
                         break;
                     }
                 }
-                if(dir.attribute != 0x02 && dir.attribute != 0x10 && dir.attribute != 0x80 && dir.attribute != 0x0F){
+                if(dir.attribute != ATTR_HIDDEN && dir.attribute != ATTR_DIRECTORY && dir.attribute != 0x80 && dir.attribute != ATTR_LONG_NAME){
                     memcpy(tmp,dir.name,length);
                     if(dir.extention[0]==' '){
                         tmp[length] = '\0';
@@ -222,18 +242,13 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
                         tmp[i] = tolower(tmp[i]);
                     } 
                     printf("%s\n",tmp);
-                    printf("%x\n",dir.first_cluster_high);
-                    printf("%x\n",dir.first_cluster_low);
-                    //printf("%x\n",dir.attribute);
-                }else if(dir.attribute == 0x10){
+                }else if(dir.attribute == ATTR_DIRECTORY){
                     memcpy(tmp,dir.name,length);
                     for(int i = 0; i < length; i++){
                         tmp[i] = tolower(tmp[i]);
                     } 
                     tmp[length] = '\0';
                     printf("%s\n",tmp);
-                    printf("%x\n",dir.first_cluster_high);
-                    printf("%x\n",dir.first_cluster_low);
                 }
         } 
 }
@@ -299,15 +314,11 @@ unsigned int find_empty_fat(unsigned int start_dir, struct boot_sector_struct* i
 }
 
 //TODO create only will find a free sector in the current block need to fix that
-//For some reason you need 2 32 byte blocks for an entry? gotta figure that out currently 
-//it is hardcoded to have the entry for hello for simple testing purposes
 void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned int empty_cluster_num){
         if(empty_cluster_num == -1){printf("error file already exists\n");}
         else{
-             printf("create: %x",empty_cluster_num);
-             printf("CREATE DOES NOT COMPLETELY WORK YET: %x",empty_cluster_num);
+             printf("CREATE DOES NOT COMPLETELY WORK YET");
              struct directory dir;
-             printf("filename: %s",filename);
              char filestart[9];
              for(int i = 0; i < 8; i++){
                  filestart[i] = ' ';
@@ -333,13 +344,9 @@ void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigne
              if(has_exten){
                 memcpy(fileexten,&filename[j+1],i-j);
              }
-             printf("name %s.%s\n",filestart,fileexten);
              uint32_t empty_fat = find_empty_fat(start_dir_fat,info,fptr);
-             printf("empty fat: %x\n",empty_fat);
              dir.first_cluster_high = empty_fat >> 16;
              dir.first_cluster_low = (empty_fat << 16) >> 16;
-             printf("dir high: %x\n",dir.first_cluster_high);
-             printf("dir low: %x\n",dir.first_cluster_low);
              dir.size = 0;
              for(int i = 0; i < 8; i++){
                  dir.name[i] = filestart[i];
@@ -347,12 +354,24 @@ void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigne
              for(int i = 0; i < 3; i++){
                  dir.extention[i] = fileexten[i];
              }
-             dir.attribute = 0x20;
+             dir.attribute = ATTR_ARCHIVE;
              fseek(fptr,empty_cluster_num,SEEK_SET);
              char test[33];
-             memcpy(test,"\x41\x68\x00\x65\x00\x6C\x00\x6C\x00\x6F\x00\x0F\x00\x14\x00\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x00\x00\xFF\xFF\xFF\xFF",31);
-             printf("test: %s\n",test);
-             fwrite(test,sizeof(struct directory),1,fptr);
+             struct long_name longname;
+             longname.LDIR_Ord = 0x40;
+             for(int i = 0; i < 10; i+=2){
+                 longname.LDIR_Name1[i] = filename[i/2];
+                 longname.LDIR_Name1[i+1] = 0x00;
+             }
+             longname.LDIR_Attr = ATTR_LONG_NAME;
+             longname.LDIR_Chksum = ChkSum(filename);
+             for(int i = 0; i < 12; i+=2){
+                 longname.LDIR_Name2[i] = filename[5+i/2];
+                 longname.LDIR_Name2[i+1] = 0x00;
+             }
+             longname.LDIR_FstClusLO = 0;
+             longname.LDIR_Name3 = 0xFFFFFFFF;
+             fwrite(&longname,sizeof(struct long_name),1,fptr);
              fwrite(&dir,sizeof(struct directory),1,fptr);
              fseek(fptr,empty_fat,SEEK_SET);
              uint32_t eof = 0xFFFFFF0F;
@@ -391,9 +410,7 @@ unsigned int cd(unsigned int current_dir, struct boot_sector_struct* info, FILE*
 uint32_t dir_on = current_dir_fat;
         unsigned int tmp;
         char tmp1[9];
-        printf("directory %s\n",directory);
         do{
-        printf("dir on %x\n",dir_on);
         fseek(fptr,dir_on,SEEK_SET);
         fread(&(tmp),4,1,fptr);
         struct directory dir;
@@ -409,7 +426,7 @@ uint32_t dir_on = current_dir_fat;
                        break; 
                     }              
                 }
-                if(dir.attribute == 0x10){
+                if(dir.attribute == ATTR_DIRECTORY){
                     memcpy(tmp1,dir.name,length);
                     for(int i = 0; i < length; i++){
                         tmp1[i] = tolower(tmp1[i]);
@@ -417,22 +434,18 @@ uint32_t dir_on = current_dir_fat;
                     tmp1[length] = '\0';
                     printf("%s\n",tmp1);
                 }if(strcmp(tmp1,directory)==0){
-                    printf("found it \n");
-                    printf("high %x \n",dir.first_cluster_high);
-                    printf("low %x \n",dir.first_cluster_low);
                     unsigned int super_tmp = dir.first_cluster_high >> 8;
                     super_tmp += dir.first_cluster_low;
                     if(super_tmp == 0){super_tmp=2;}
                     super_tmp = ThisFATSecNum(super_tmp,info) + ThisFATEntOffset(super_tmp,info);
-                    printf("together %x",super_tmp);
                     return super_tmp;
                 }
         }
-        if(tmp < 0x0FFFFFF8){
+        if(tmp < END_FAT){
             dir_on = start_dir_fat + (tmp*4-8);
         }
-        }while(tmp < 0x0FFFFFF8);
-        printf("didnt find the file\n");
+        }while(tmp < END_FAT);
+              printf("didnt find the file\n");
         return current_dir_fat;
 
 }
@@ -443,9 +456,7 @@ void size(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr,
 uint32_t dir_on = current_dir_fat;
         unsigned int tmp;
         char tmp1[13];
-        printf("Directory: %s\n",directory);
         do{
-        printf("Dir On: %x\n",dir_on);
         fseek(fptr,dir_on,SEEK_SET);
         fread(&(tmp),4,1,fptr);
         struct directory dir;
@@ -461,7 +472,7 @@ uint32_t dir_on = current_dir_fat;
                        break; 
                     }              
                 }
-                if(dir.attribute != 0x10){
+                if(dir.attribute != ATTR_DIRECTORY){
                     memcpy(tmp1,dir.name,length);
                     for(int i = 0; i < length; i++){
                         tmp1[i] = tolower(tmp1[i]);
@@ -469,17 +480,16 @@ uint32_t dir_on = current_dir_fat;
                     tmp1[length] = '\0';
                     printf("%s\n",tmp1);
                 }if(strcmp(tmp1,directory)==0){
-                    printf("found it \n");
                     unsigned int super_tmp = dir.size;
                     printf("file size %d",super_tmp);
                     return;
                 }
         }
-        if(tmp < 0x0FFFFFF8){
+        if(tmp < END_FAT){
             dir_on = start_dir_fat + (tmp*4-8);
         }
-        }while(tmp < 0x0FFFFFF8);
-        printf("didnt find the file\n");
+        }while(tmp < END_FAT);
+              printf("didnt find the file\n");
 }
 
 
@@ -533,29 +543,16 @@ int main(int argc,char *argv[]){
                   printf("ARRAY:%s\n",commands[i]);
                   }
                 if(strcmp(commands[0],"ls")==0){
-                        uint32_t tmp1_6;
                         uint32_t tmp;
-                        uint32_t tmp7_31;
                         uint32_t dir_on = current_dir_fat;
-                        //printf("current dir%x\n",current_dir_fat);
-                        //printf("%d\n",start_dir_fat);
-                        //printf("ls is not done. It will only print out first cluster files. Fix this when cd is working so that it is testable\n");
                         do{
                         fseek(fptr,dir_on,SEEK_SET);
                         fread(&(tmp),4,1,fptr);
-                        printf("%x\n",tmp1_6);
-                        printf("tmp%x\n",tmp);
-                        tmp7_31 = (tmp << 6) >> 6;
-                        tmp1_6 = tmp >> 26;
-                        printf("tmp1_6%x\n",tmp1_6);
-                        //printf("tmp7_31%x\n",tmp7_31);
-                        printf("Current Directory: %x\n",dir_on);
-                        //currently assuming all in the same fat
                             ls(fptr,((dir_on-start_dir_fat)/4+2),&info);
-                            if(tmp < 0x0FFFFFF8){
+                            if(tmp < END_FAT){
                                 dir_on = start_dir_fat + (tmp*4-8);
                             }
-                        }while(tmp < 0x0FFFFFF8);
+                        }while(tmp < END_FAT);
                 }
                 else if(strcmp(commands[0],"cd")==0){
                         if(commands[1]!=NULL){
@@ -563,7 +560,6 @@ int main(int argc,char *argv[]){
                         }else{
                              printf("Error: cd needs a directory name\n");
                         }
-                        printf("CD!!!\n");
                 }
                 else if(strcmp(commands[0],"size")==0){
                         if(commands[1] != NULL){
@@ -571,7 +567,6 @@ int main(int argc,char *argv[]){
 			}else{
 		 	    printf("size needs a file name\n");
 			}
-			printf("SIZE!!!\n"); 	
 		}
                 else if(strcmp(commands[0],"creat")==0){
                         printf("creat!!!\n");
