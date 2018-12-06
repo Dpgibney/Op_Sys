@@ -256,7 +256,9 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
         } 
 }
 
-void create(char* filename, struct boot_sector_struct* info, FILE* fptri, unsigned int cluster_num){
+void create(char* filename, struct boot_sector_struct* info, FILE* fptri, unsigned int empty_cluster_num){
+        if(empty_cluster_num == NULL){printf("error file already exists\n")}
+        else{}
 }
 
 int main(int argc,char *argv[]){
@@ -349,7 +351,7 @@ int main(int argc,char *argv[]){
                         }else{
                               unsigned int empty = find_empty_cluster(current_dir_fat,&info,fptr);
                               printf("empty: %x",empty);
-                              create(commands[1],&info,fptr,current_dir_fat);
+                              create(commands[1],&info,fptr,empty);
                                                
                         }
                 }
