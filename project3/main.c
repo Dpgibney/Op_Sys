@@ -41,10 +41,21 @@ struct __attribute__((__packed__)) directory{
         char extention[3];
         uint8_t attribute;
         uint8_t empty[8];
-        uint16_t first_cluster_high;
+        int16_t first_cluster_high;
         uint8_t empty2[4];
         uint16_t first_cluster_low;
         uint32_t size;     
+};
+
+struct __attribute__((__packed__)) long_name{
+        uint8_t LDIR_Ord;
+        char LDIR_Name1[10];
+        uint8_t LDIR_Attr;
+        uint8_t LDIR_Type;
+        uint8_t LDIR_Chksum;
+        char LDIR_Name2[12];
+        uint16_t LDIR_FstClusLO;
+        uint32_t LDIR_Name3;       
 };
 int FATSz;
 int TotSec;
@@ -125,7 +136,16 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
         }while(tmp < 0x0FFFFFF8);
 }
 
-
+unsigned char ChkSum (unsigned char *name){
+      short FcbNameLen;
+      unsigned char Sum;
+ 
+      Sum = 0;
+      for(FcbNameLen=11; FcbNameLen!=0; FcbNameLen--){
+          Sum = ((Sum & 1) ? 0x80 : 0) + (Sum >> 1) + *name++;
+      }
+      return (Sum);
+}
 
 void get_info(struct boot_sector_struct* info, FILE *fptr){
         if(fseek(fptr,11,SEEK_SET)==0){
@@ -296,9 +316,24 @@ void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigne
              dir.attribute = 0x20;
              fseek(fptr,empty_cluster_num,SEEK_SET);
              char test[33];
-             memcpy(test,"\x41\x68\x00\x65\x00\x6C\x00\x6C\x00\x6F\x00\x0F\x00\x14\x00\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x00\x00\xFF\xFF\xFF\xFF",31);
-             printf("test: %s\n",test);
-             fwrite(test,sizeof(struct directory),1,fptr);
+             struct long_name longname;
+             longname.LDIR_Ord = 0x40;
+             for(int i = 0; i < 10; i+=2){
+                 longname.LDIR_Name1[i] = filename[i/2];
+                 longname.LDIR_Name1[i+1] = 0x00;
+             }
+             longname.LDIR_Attr = 0x0F;
+             longname.LDIR_Chksum = ChkSum(filename);
+             for(int i = 0; i < 12; i+=2){
+                 longname.LDIR_Name2[i] = filename[5+i/2];
+                 longname.LDIR_Name2[i+1] = 0x00;
+             }
+             longname.LDIR_FstClusLO = 0;
+             longname.LDIR_Name3 = 0xFFFFFFFF;
+             //memcpy(test,"\x41\x68\x00\x65\x00\x6C\x00\x6C\x00\x6F\x00\x0F\x00\x14\x00\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x00\x00\xFF\xFF\xFF\xFF",31);
+             //printf("test: %s\n",test);
+             //fwrite(test,sizeof(struct directory),1,fptr);
+             fwrite(&longname,sizeof(struct long_name),1,fptr);
              fwrite(&dir,sizeof(struct directory),1,fptr);
              fseek(fptr,empty_fat,SEEK_SET);
              uint32_t eof = 0xFFFFFF0F;
