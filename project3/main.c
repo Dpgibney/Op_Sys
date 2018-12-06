@@ -77,7 +77,7 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
         unsigned int tmp;
         char tmp1[13];
         do{
-        printf("dir on %x\n",dir_on);
+        printf("dir on: %x\n",dir_on);
         fseek(fptr,dir_on,SEEK_SET);
         fread(&(tmp),4,1,fptr);
         struct directory dir;
@@ -172,7 +172,7 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
         fseek(fptr,FirstSectorofCluster(N),SEEK_SET);
 
         //so that it will check the sector fully
-        printf("what is n%d\n",N);
+        printf("what is n: %d\n",N);
         for(int i = 0; i < (info->BPB_BytsPerSec/32); i++){
                 fread(&dir,32,1,fptr);
                 for(int i = 0; i < 8; i++){
@@ -305,6 +305,50 @@ uint32_t dir_on = current_dir_fat;
 
 void create(char* filename, struct boot_sector_struct* info, FILE* fptri, unsigned int cluster_num){
 }
+
+
+
+
+void read(char* filename, struct boot_sector_struct* info, FILE* fptr. unsigned int cluster_num, int OFFSET, int SIZE){
+//check for mode (permissions) needs to be R, RW, or WR
+//to hold file attributes
+        struct directory dir;
+        
+        //to hold file name and extention
+        char tmp[13];
+        int length = 8;
+	char cluster_hold[1000];     
+//currently assuming all in the same fat
+		do{
+                        fseek(fptr,dir_on,SEEK_SET);
+                        fread(&(tmp),4,1,fptr);
+                        printf("%x\n",tmp1_6);
+                        printf("tmp%x\n",tmp);
+                        tmp7_31 = (tmp << 6) >> 6;
+                        tmp1_6 = tmp >> 26;
+                        printf("tmp1_6%x\n",tmp1_6);
+                        //printf("tmp7_31%x\n",tmp7_31);
+                        printf("Current Directory: %x\n",dir_on);
+                        //currently assuming all in the same fat
+                            //ls call(cluster num)
+			    cluster_num = dir_on-start_dir_fat/4+2
+			
+                            if(tmp < 0x0FFFFFF8){
+                                dir_on = start_dir_fat + (tmp*4-8);
+                            }
+                        }while(tmp < 0x0FFFFFF8);
+//read the SIZE bytes starting at OFFSET 
+//Edge cases: OFFSET > sizeof(FILENAME), print error
+//SIZE > sizeof(FILENAME), print entire file
+//OFFSET + SIZE > sizeof(FILENAME) -prints sizeof(FILENAME) -OFFSET bytes
+
+
+//off_bytes/bytes_per_sec = cluter offset
+//offset % bytes_pwer_sec = byte offset within cluster
+}
+
+
+
 
 
 
