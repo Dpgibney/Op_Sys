@@ -505,13 +505,13 @@ void size(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr,
 
 
 
-void read(char* filename, struct boot_sector_struct* info, FILE* fptr. unsigned int cluster_num, int OFFSET, int SIZE){
+void readfile(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned int cluster_num, int OFFSET, int SIZE){
 //check for mode (permissions) needs to be R, RW, or WR
 //to hold file attributes
         struct directory dir;
 	struct openfiles perm;
-	}
-	if(perm.mode != 2) && (perm.mode != 3){
+
+	if((perm.mode != 2) && (perm.mode != 3)){
 		printf("Error: Invalid Permission");
        		return;
 	}
@@ -520,21 +520,21 @@ void read(char* filename, struct boot_sector_struct* info, FILE* fptr. unsigned 
         int length = 8;
 	char cluster_hold[1000];     
 //currently assuming all in the same fat
+		/*
 		do{
                         //find the cluster value and store into char array
 			fseek(fptr,dir_on,SEEK_SET);
                         fread(&(tmp),4,1,fptr);
-                        tmp7_31 = (tmp << 6) >> 6;
-                        tmp1_6 = tmp >> 26;
                         printf("Current Directory: %x\n",dir_on);
                         //currently assuming all in the same fat
                             //ls call(cluster num)
 			    cluster_num = dir_on-start_dir_fat/4+2
-			    fread(&(tmp), 4, 1, fptr);	
+			//    fread(&(tmp), 4, 1, fptr);	
                             if(tmp < 0x0FFFFFF8){
                                 dir_on = start_dir_fat + (tmp*4-8);
                             }
                         }while(tmp < 0x0FFFFFF8);
+		*/
 //read the SIZE bytes starting at OFFSET 
 //Edge cases: OFFSET > sizeof(FILENAME), print error
 //SIZE > sizeof(FILENAME), print entire file
