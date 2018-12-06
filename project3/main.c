@@ -147,6 +147,7 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
         }while(tmp < END_FAT);
 }
 
+//ChkSum function from the fat write up provided
 unsigned char ChkSum (unsigned char *name){
       short FcbNameLen;
       unsigned char Sum;
@@ -251,6 +252,7 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
 		}
 	} 
 }
+
 int checkForFile(FILE *fptr, int N, struct boot_sector_struct* info, char* filename, unsigned int* super_tmp){
         //to hold file attributes
         struct directory dir;
@@ -298,7 +300,6 @@ int checkForFile(FILE *fptr, int N, struct boot_sector_struct* info, char* filen
 	return 0;
 }
 
-
 unsigned int find_empty_fat(unsigned int start_dir, struct boot_sector_struct* info, FILE* fptr){
 	uint32_t dir_on = start_dir_fat;
 	unsigned int tmp;
@@ -313,37 +314,52 @@ unsigned int find_empty_fat(unsigned int start_dir, struct boot_sector_struct* i
 }
 
 //TODO create only will find a free sector in the current block need to fix that
+//also fix create with file extentions
 void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned int empty_cluster_num){
 	if(empty_cluster_num == -1){printf("error file already exists\n");}
 	else{
 		printf("CREATE DOES NOT COMPLETELY WORK YET");
                 //First this sets up the file to be added to the directory
-		struct directory dir;
-		char filestart[9];
-		for(int i = 0; i < 8; i++){
-			filestart[i] = ' ';
-		}
-		char fileexten[4];
-		for(int i = 0; i < 3; i++){
-			fileexten[i] = ' ';
-		}
-		int i = 0;
-		int j = 0;
-		bool has_exten = false;
-		while(filename[i]!='\0'){
-			if(filename[i]=='.'){
-				memcpy(filestart,filename,i);
-				j = i;
-				has_exten = true;
-			}
-			i++; 
-			if(filename[i]=='\0'){
-				memcpy(filestart,filename,i);
-			}
-		}
-		if(has_exten){
-			memcpy(fileexten,&filename[j+1],i-j);
-		}
+                struct directory dir;
+                char filestart[9];
+                for(int i = 0; i < 8; i++){
+                        filestart[i] = ' ';
+                }
+                char fileexten[4];
+                for(int i = 0; i < 3; i++){
+                        fileexten[i] = ' ';
+                }
+                int i = 0;
+                int j = 0;
+                bool has_exten = false;
+                while(filename[i]!='\0'){
+                        if(filename[i]=='.'){
+                                memcpy(filestart,filename,i);
+                                j = i;
+                                has_exten = true;
+                        }
+                        i++;
+                        if(filename[i]=='\0'){
+                                memcpy(filestart,filename,i);
+                        }
+                }
+                if(has_exten){
+                        memcpy(fileexten,&filename[j+1],i-j);
+                }
+
+	//	struct directory dir;
+	//	char filestart[9];
+	//	for(int i = 0; i < 8; i++){
+        //                if(i<strlen(filename)){
+	//		     filestart[i] = filename[i];
+        //                }else{
+	//		     filestart[i] = ' ';
+        //                }
+	//	}
+	//	char fileexten[4];
+	//	for(int i = 0; i < 3; i++){
+	//		fileexten[i] = ' ';
+	//	}
                 //finds empty fat to set the cluster for the new file
 		uint32_t empty_fat = find_empty_fat(start_dir_fat,info,fptr);
 		dir.first_cluster_high = empty_fat >> 16;
@@ -356,6 +372,94 @@ void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigne
 			dir.extention[i] = fileexten[i];
 		}
 		dir.attribute = ATTR_ARCHIVE;
+		fseek(fptr,empty_cluster_num,SEEK_SET);
+		char test[33];
+                //setting up the long name to be added in front of the actual directory entry
+                //this will NOT accept long names correctly it is only implemented to get ls in 
+                //an actual file manager to work
+		struct long_name longname;
+		longname.LDIR_Ord = 0x40;
+		for(int i = 0; i < 10; i+=2){
+			longname.LDIR_Name1[i] = filename[i/2];
+			longname.LDIR_Name1[i+1] = 0x00;
+		}
+		longname.LDIR_Attr = ATTR_LONG_NAME;
+		longname.LDIR_Chksum = ChkSum(filename);
+		for(int i = 0; i < 12; i+=2){
+			longname.LDIR_Name2[i] = filename[5+i/2];
+			longname.LDIR_Name2[i+1] = 0x00;
+		}
+		longname.LDIR_FstClusLO = 0;
+		longname.LDIR_Name3 = 0xFFFFFFFF;
+                //write the long name and then file to the fat32 system
+		fwrite(&longname,sizeof(struct long_name),1,fptr);
+		fwrite(&dir,sizeof(struct directory),1,fptr);
+                //puts eof value in the fat table
+		fseek(fptr,empty_fat,SEEK_SET);
+		uint32_t eof = 0xFFFFFF0F;
+		fwrite(&eof,sizeof(uint32_t),1,fptr);
+	}
+}
+
+//TODO currently it is recognized as a directory but doesnt seem to know what to do about that
+void mkdir(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned int empty_cluster_num){
+	if(empty_cluster_num == -1){printf("error file already exists\n");}
+	else{
+		printf("mkdir DOES NOT COMPLETELY WORK YET");
+                //First this sets up the directory to be added to the directory
+                struct directory dir;
+                char filestart[9];
+                for(int i = 0; i < 8; i++){
+                        if(i<strlen(filename)){
+                             filestart[i] = filename[i];
+                        }else{
+                             filestart[i] = ' ';
+                        }
+                }
+                char fileexten[4];
+                for(int i = 0; i < 3; i++){
+                        fileexten[i] = ' ';
+                }
+
+
+        //  	struct directory dir;
+	//	char filestart[9];
+	//	for(int i = 0; i < 8; i++){
+	//		filestart[i] = ' ';
+	//	}
+	//	char fileexten[4];
+	//	for(int i = 0; i < 3; i++){
+	//		fileexten[i] = ' ';
+	//	}
+	//	int i = 0;
+	//	int j = 0;
+	//	bool has_exten = false;
+	//	while(filename[i]!='\0'){
+	//		if(filename[i]=='.'){
+	//			memcpy(filestart,filename,i);
+	//			j = i;
+	//			has_exten = true;
+	//		}
+	//		i++; 
+	//		if(filename[i]=='\0'){
+	//			memcpy(filestart,filename,i);
+	//		}
+	//	}
+	//	if(has_exten){
+	//		memcpy(fileexten,&filename[j+1],i-j);
+	//	}
+                //finds empty fat to set the cluster for the new file
+		uint32_t empty_fat = find_empty_fat(start_dir_fat,info,fptr);
+		dir.first_cluster_high = empty_fat >> 16;
+		dir.first_cluster_low = (empty_fat << 16) >> 16;
+		dir.size = 0;
+		for(int i = 0; i < 8; i++){
+			dir.name[i] = filestart[i];
+		}
+		for(int i = 0; i < 3; i++){
+			dir.extention[i] = fileexten[i];
+		}
+		dir.attribute = ATTR_DIRECTORY;
 		fseek(fptr,empty_cluster_num,SEEK_SET);
 		char test[33];
                 //setting up the long name to be added in front of the actual directory entry
@@ -416,6 +520,7 @@ void openfile(char* filename, int mode, struct openfiles*  of, struct boot_secto
 	}
 	
 }	
+
 unsigned int cd(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr, char* directory){
 	uint32_t dir_on = current_dir_fat;
 	unsigned int tmp;
@@ -633,9 +738,6 @@ int main(int argc,char *argv[]){
                                                
                         }
                 }
-                else if(strcmp(commands[0],"mkdir")==0){
-                        printf("MKDIR!!!\n");
-                }
                 else if(strcmp(commands[0],"open")==0){
                         printf("open!!!\n");
 			if(commands[1]==NULL){
@@ -682,9 +784,6 @@ int main(int argc,char *argv[]){
 		          	mkdir(commands[1],&info,fptr,empty);
 		          	printf("MKDIR!!!\n");
                         }
-		}
-		else if(strcmp(commands[0],"open")==0){
-			printf("open!!!\n");
 		}
 		else if(strcmp(commands[0],"read")==0){
 			printf("READ!!!\n");
