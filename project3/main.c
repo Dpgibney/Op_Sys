@@ -73,6 +73,13 @@ int FirstDataSector;
 int BPB_SecPerClus;
 int bytes_per_logic;
 
+//struct for storing open files
+struct openfiles{
+	int val;
+	int mode;
+	unsigned int first_cluster_num;
+};
+
 //just for compiling for the create function david will have to change this
 unsigned int current_dir_fat;
 unsigned int start_dir_fat;
@@ -244,6 +251,53 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
 		}
 	} 
 }
+int checkForFile(FILE *fptr, int N, struct boot_sector_struct* info, char* filename, unsigned int* super_tmp){
+        //to hold file attributes
+        struct directory dir;
+
+        //to hold file name and extention
+        char tmp[13];
+        int length = 8;
+
+        //go to cluster and read out the files in it
+        fseek(fptr,FirstSectorofCluster(N),SEEK_SET);
+
+        //so that it will check the sector fully
+        printf("what is n%d\n",N);
+        for(int i = 0; i < (info->BPB_BytsPerSec/32); i++){
+                fread(&dir,32,1,fptr);
+                for(int i = 0; i < 8; i++){
+                    if(dir.name[i]==' '){
+                        length = i;
+                        break;
+                    }
+                }
+                if(dir.attribute != 0x02 && dir.attribute != 0x10 && dir.attribute != 0x80 && dir.attribute != 0x0F){
+                    memcpy(tmp,dir.name,length);
+                    if(dir.extention[0]==' '){
+                        tmp[length] = '\0';
+                    }else{
+                        tmp[length] = '.';
+                        memcpy(&tmp[length+1],dir.extention,3);
+                        tmp[length+4] = '\0';
+                    }
+	
+                    for(int i = 0; i < 12; i++){
+                        tmp[i] = tolower(tmp[i]);
+                    }
+                    printf("%s\n",tmp);
+                    printf("%x\n",dir.first_cluster_high);
+                    printf("%x\n",dir.first_cluster_low);
+                }
+		if(strcmp(tmp,filename)==0){
+			*super_tmp = dir.first_cluster_high >> 8;
+                    	*super_tmp += dir.first_cluster_low;
+			return 1;
+		}	
+        }
+	return 0;
+}
+
 
 unsigned int find_empty_fat(unsigned int start_dir, struct boot_sector_struct* info, FILE* fptr){
 	uint32_t dir_on = start_dir_fat;
@@ -331,6 +385,37 @@ void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigne
 	}
 }
 
+void openfile(char* filename, int mode, struct openfiles*  of, struct boot_sector_struct* info, FILE* fptr, int *filecount){
+	if(mode == 0){
+		printf("Invalid mode\n");
+	}
+	else{
+	uint32_t dir_on = current_dir_fat;
+	uint32_t tmp;
+	unsigned int super_tmp;
+	int open = 0;
+		do{
+        	fseek(fptr,dir_on,SEEK_SET);
+             	fread(&(tmp),4,1,fptr);
+                printf("Current Directory: %x\n",dir_on);
+                //currently assuming all in the same fat
+                if(checkForFile(fptr,((dir_on-start_dir_fat)/4+2),info, filename, &super_tmp)==1){
+			printf("FILE EXISTS");
+			//for loop to check if its in of open =1
+			if(open == 0){
+				//create new entry
+			}
+		}
+		else{
+			printf("File does not exist");
+		}
+                if(tmp < 0x0FFFFFF8){
+               		dir_on = start_dir_fat + (tmp*4-8);
+           	}
+         	}while(tmp < 0x0FFFFFF8);
+	}
+	
+}	
 unsigned int cd(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr, char* directory){
 	uint32_t dir_on = current_dir_fat;
 	unsigned int tmp;
@@ -420,87 +505,130 @@ void size(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr,
 
 
 int main(int argc,char *argv[]){
-	char* input_raw = (char*)malloc(MAX_INPUT_SIZE*sizeof(char));
-	char* input = (char*)malloc(MAX_INPUT_SIZE*sizeof(char));
-	FILE *fptr;
-	char* token;
-	char* commands[5];
-	int i = 0;
+        char* input_raw = (char*)malloc(MAX_INPUT_SIZE*sizeof(char));
+        char* input = (char*)malloc(MAX_INPUT_SIZE*sizeof(char));
+        FILE *fptr;
+        char* token;
+        char* commands[5];
+        int i = 0;
+	struct openfiles * openfs = NULL;
+	int mode = 0;
+	int filecount = 0;
 
-	//check that a file was passed as an argument
-	if(argc!=2){
-		printf("Improper usage: must pass image file as argument\n");
-		return -1;
-	}
+        //check that a file was passed as an argument
+        if(argc!=2){
+                printf("Improper usage: must pass image file as argument\n");
+                return -1;
+        }
 
-	//boot sector struct
-	struct boot_sector_struct info;
+        //boot sector struct
+        struct boot_sector_struct info;
 
-	//check that file could open
-	//currently using binary mode
-	fptr = fopen(argv[1],"rb+");
-	if(fptr==NULL){
-		printf("Opening file failed\n");
-		return -1;
-	}
-	//parse boot sector
-	get_info(&info,fptr);
+        //check that file could open
+        //currently using binary mode
+        fptr = fopen(argv[1],"rb+");
+        if(fptr==NULL){
+                printf("Opening file failed\n");
+                return -1;
+        }
+        //parse boot sector
+        get_info(&info,fptr);
 
-	//will grab newline as well be aware
-	fgets(input_raw,MAX_INPUT_SIZE,stdin);
-	sscanf(input_raw,"%s",input);
-	input_raw[strlen(input_raw)-1] = '\0';
+        //will grab newline as well be aware
+        fgets(input_raw,MAX_INPUT_SIZE,stdin);
+        sscanf(input_raw,"%s",input);
+        input_raw[strlen(input_raw)-1] = '\0';
 
-	//main shell like loop to ask user what to do
-	while(strcmp(input,"exit")!=0){
-		for(int i=0; i < 5; i++){
-			commands[i] = 0;
-		}
-		i = 0;
-		token = strtok(input_raw, " ");
-		while(token!=NULL){
-			commands[i++] = token;
-			//printf("TOKEN %s\n", token);
-			token = strtok(NULL, " ");
-		}
-		for(int i = 0; i < 5; i++){
-			//printf("ARRAY:%s\n",commands[i]);
-		}
-		if(strcmp(commands[0],"ls")==0){
-			uint32_t tmp;
-			uint32_t dir_on = current_dir_fat;
-			do{
-				fseek(fptr,dir_on,SEEK_SET);
-				fread(&(tmp),4,1,fptr);
-				ls(fptr,((dir_on-start_dir_fat)/4+2),&info);
-				if(tmp < END_FAT){
-					dir_on = start_dir_fat + (tmp*4-8);
-				}
-			}while(tmp < END_FAT);
-		}
-		else if(strcmp(commands[0],"cd")==0){
-			if(commands[1]!=NULL){
-				current_dir_fat = cd(current_dir_fat, &info, fptr, commands[1]);
+        //main shell like loop to ask user what to do
+        while(strcmp(input,"exit")!=0){
+                for(int i=0; i < 5; i++){
+                        commands[i] = 0;
+                }
+                i = 0;
+                token = strtok(input_raw, " ");
+                while(token!=NULL){
+                        commands[i++] = token;
+                        printf("TOKEN %s\n", token);
+                        token = strtok(NULL, " ");
+                }
+                for(int i = 0; i < 5; i++){
+                  printf("ARRAY:%s\n",commands[i]);
+                  }
+                if(strcmp(commands[0],"ls")==0){
+                        uint32_t tmp;
+                        uint32_t dir_on = current_dir_fat;
+                        do{
+                        fseek(fptr,dir_on,SEEK_SET);
+                        fread(&(tmp),4,1,fptr);
+                            ls(fptr,((dir_on-start_dir_fat)/4+2),&info);
+                            if(tmp < END_FAT){
+                                dir_on = start_dir_fat + (tmp*4-8);
+                            }
+                        }while(tmp < END_FAT);
+                }
+                else if(strcmp(commands[0],"cd")==0){
+                        if(commands[1]!=NULL){
+                             current_dir_fat = cd(current_dir_fat, &info, fptr, commands[1]);
+                        }else{
+                             printf("Error: cd needs a directory name\n");
+                        }
+                }
+                else if(strcmp(commands[0],"size")==0){
+                        if(commands[1] != NULL){
+			    size(current_dir_fat, &info, fptr, commands[1]);
 			}else{
 				printf("Error: cd needs a directory name\n");
 			}
 		}
-		else if(strcmp(commands[0],"size")==0){
-			if(commands[1] != NULL){
-				size(current_dir_fat, &info, fptr, commands[1]);
-			}else{
-				printf("size needs a file name\n");
-			}
-		}
-		else if(strcmp(commands[0],"creat")==0){
-			printf("creat!!!\n");
+                else if(strcmp(commands[0],"creat")==0){
+                        printf("creat!!!\n");
+                        if(commands[1]==NULL){
+                              printf("Must enter a filename\n");
+                        }else{
+                              unsigned int empty = find_empty_cluster(current_dir_fat,&info,fptr, commands[1]);
+                              printf("empty: %x",empty);
+                              create(commands[1],&info,fptr,empty);
+                                               
+                        }
+                }
+                else if(strcmp(commands[0],"mkdir")==0){
+                        printf("MKDIR!!!\n");
+                }
+                else if(strcmp(commands[0],"open")==0){
+                        printf("open!!!\n");
 			if(commands[1]==NULL){
 				printf("Must enter a filename\n");
-			}else{
-				unsigned int empty = find_empty_cluster(current_dir_fat,&info,fptr, commands[1]);
-				printf("empty: %x",empty);
-				create(commands[1],&info,fptr,empty);
-
+			}
+			else{
+				if(commands[2]==NULL){
+					printf("Must enter a mode\n");
+				}
+				else if(commands[3]==NULL){
+					printf("OPEN func\n");
+					if(strcmp(commands[2],"w")==0){
+						mode = 1;
+					}
+					else if(strcmp(commands[2], "r")==0){
+						mode = 2;
+					}
+					else if(strcmp(commands[2], "rw")==0){
+						mode = 3;
+					}
+					else if(strcmp(commands[2], "wr")==0){
+						mode = 3;
+					}
+					else{
+						mode = 0;
+					}
+					printf("Mode: %d\n", mode);
+					openfile(commands[1], mode, openfs, &info, fptr, &filecount);
+				}
+			}
+                }
+                else if(strcmp(commands[0],"close")==0){
+                        printf("close!!!\n");
+			if(commands[1]==NULL){
+				printf("Must enter a filename\n");
 			}
 		}
 		else if(strcmp(commands[0],"mkdir")==0){
@@ -515,9 +643,6 @@ int main(int argc,char *argv[]){
 		}
 		else if(strcmp(commands[0],"open")==0){
 			printf("open!!!\n");
-		}
-		else if(strcmp(commands[0],"close")==0){
-			printf("close!!!\n");
 		}
 		else if(strcmp(commands[0],"read")==0){
 			printf("READ!!!\n");
