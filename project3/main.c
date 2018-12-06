@@ -237,6 +237,53 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
                 }
         } 
 }
+int checkForFile(FILE *fptr, int N, struct boot_sector_struct* info, char* filename, unsigned int* super_tmp){
+        //to hold file attributes
+        struct directory dir;
+
+        //to hold file name and extention
+        char tmp[13];
+        int length = 8;
+
+        //go to cluster and read out the files in it
+        fseek(fptr,FirstSectorofCluster(N),SEEK_SET);
+
+        //so that it will check the sector fully
+        printf("what is n%d\n",N);
+        for(int i = 0; i < (info->BPB_BytsPerSec/32); i++){
+                fread(&dir,32,1,fptr);
+                for(int i = 0; i < 8; i++){
+                    if(dir.name[i]==' '){
+                        length = i;
+                        break;
+                    }
+                }
+                if(dir.attribute != 0x02 && dir.attribute != 0x10 && dir.attribute != 0x80 && dir.attribute != 0x0F){
+                    memcpy(tmp,dir.name,length);
+                    if(dir.extention[0]==' '){
+                        tmp[length] = '\0';
+                    }else{
+                        tmp[length] = '.';
+                        memcpy(&tmp[length+1],dir.extention,3);
+                        tmp[length+4] = '\0';
+                    }
+	
+                    for(int i = 0; i < 12; i++){
+                        tmp[i] = tolower(tmp[i]);
+                    }
+                    printf("%s\n",tmp);
+                    printf("%x\n",dir.first_cluster_high);
+                    printf("%x\n",dir.first_cluster_low);
+                }
+		if(strcmp(tmp,filename)==0){
+			*super_tmp = dir.first_cluster_high >> 8;
+                    	*super_tmp += dir.first_cluster_low;
+			return 1;
+		}	
+        }
+	return 0;
+}
+
 
 unsigned int find_empty_fat(unsigned int start_dir, struct boot_sector_struct* info, FILE* fptr){
         uint32_t dir_on = start_dir_fat;
@@ -313,9 +360,30 @@ void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigne
         }
 }
 
-void openfile(char* filename, int mode, struct openfiles*  of){
+void openfile(char* filename, int mode, struct openfiles*  of, struct boot_sector_struct* info, FILE* fptr){
 	if(mode == 0){
 		printf("Invalid mode\n");
+	}
+	else{
+	uint32_t dir_on = current_dir_fat;
+	uint32_t tmp;
+	unsigned int super_tmp;
+		do{
+        	fseek(fptr,dir_on,SEEK_SET);
+             	fread(&(tmp),4,1,fptr);
+                printf("Current Directory: %x\n",dir_on);
+                //currently assuming all in the same fat
+                if(checkForFile(fptr,((dir_on-start_dir_fat)/4+2),info, filename, &super_tmp)==1){
+			printf("FILE EXISTS");
+			
+		}
+		else{
+			printf("File does not exist");
+		}
+                if(tmp < 0x0FFFFFF8){
+               		dir_on = start_dir_fat + (tmp*4-8);
+           	}
+         	}while(tmp < 0x0FFFFFF8);
 	}
 	
 }	
@@ -546,7 +614,7 @@ int main(int argc,char *argv[]){
 						mode = 0;
 					}
 					printf("Mode: %d\n", mode);
-					openfile(commands[1], mode, openfs);	
+					openfile(commands[1], mode, openfs, &info, fptr);
 				}
 			}
                 }
