@@ -417,26 +417,28 @@ void read(char* filename, struct boot_sector_struct* info, FILE* fptr. unsigned 
 //check for mode (permissions) needs to be R, RW, or WR
 //to hold file attributes
         struct directory dir;
-        
-        //to hold file name and extention
+	struct openfiles perm;
+	}
+	if(perm.mode != 2) && (perm.mode != 3){
+		printf("Error: Invalid Permission");
+       		return;
+	}
+	//to hold file name and extention
         char tmp[13];
         int length = 8;
 	char cluster_hold[1000];     
 //currently assuming all in the same fat
 		do{
-                        fseek(fptr,dir_on,SEEK_SET);
+                        //find the cluster value and store into char array
+			fseek(fptr,dir_on,SEEK_SET);
                         fread(&(tmp),4,1,fptr);
-                        printf("%x\n",tmp1_6);
-                        printf("tmp%x\n",tmp);
                         tmp7_31 = (tmp << 6) >> 6;
                         tmp1_6 = tmp >> 26;
-                        printf("tmp1_6%x\n",tmp1_6);
-                        //printf("tmp7_31%x\n",tmp7_31);
                         printf("Current Directory: %x\n",dir_on);
                         //currently assuming all in the same fat
                             //ls call(cluster num)
 			    cluster_num = dir_on-start_dir_fat/4+2
-			
+			    fread(&(tmp), 4, 1, fptr);	
                             if(tmp < 0x0FFFFFF8){
                                 dir_on = start_dir_fat + (tmp*4-8);
                             }
