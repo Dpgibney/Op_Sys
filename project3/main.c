@@ -379,7 +379,7 @@ void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigne
         }
 }
 
-void openfile(char* filename, int mode, struct openfiles*  of, struct boot_sector_struct* info, FILE* fptr){
+void openfile(char* filename, int mode, struct openfiles*  of, struct boot_sector_struct* info, FILE* fptr, int *filecount){
 	if(mode == 0){
 		printf("Invalid mode\n");
 	}
@@ -387,6 +387,7 @@ void openfile(char* filename, int mode, struct openfiles*  of, struct boot_secto
 	uint32_t dir_on = current_dir_fat;
 	uint32_t tmp;
 	unsigned int super_tmp;
+	int open = 0;
 		do{
         	fseek(fptr,dir_on,SEEK_SET);
              	fread(&(tmp),4,1,fptr);
@@ -394,7 +395,10 @@ void openfile(char* filename, int mode, struct openfiles*  of, struct boot_secto
                 //currently assuming all in the same fat
                 if(checkForFile(fptr,((dir_on-start_dir_fat)/4+2),info, filename, &super_tmp)==1){
 			printf("FILE EXISTS");
-			
+			//for loop to check if its in of open =1
+			if(open == 0){
+				//create new entry
+			}
 		}
 		else{
 			printf("File does not exist");
@@ -502,6 +506,7 @@ int main(int argc,char *argv[]){
         int i = 0;
 	struct openfiles * openfs = NULL;
 	int mode = 0;
+	int filecount = 0;
 
         //check that a file was passed as an argument
         if(argc!=2){
@@ -609,7 +614,7 @@ int main(int argc,char *argv[]){
 						mode = 0;
 					}
 					printf("Mode: %d\n", mode);
-					openfile(commands[1], mode, openfs, &info, fptr);
+					openfile(commands[1], mode, openfs, &info, fptr, &filecount);
 				}
 			}
                 }
