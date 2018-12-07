@@ -149,7 +149,17 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
                     if(strcmp(tmp1,filename)==0){
                        return -1;
                     }    
-                }if(dir.name[0]==0x00){
+                }if(dir.attribute == ATTR_DIRECTORY){
+                    memcpy(tmp1,dir.name,length);
+                        tmp1[length] = '\0';
+                    for(int i = 0; i < 12; i++){
+                        tmp1[i] = tolower(tmp1[i]);
+                    } 
+                    if(strcmp(filename,tmp1)==0){
+                          return -1;
+                    }
+                }
+                if(dir.name[0]==0x00){
                     return return_dir;
                 }
                 return_dir += 32;
