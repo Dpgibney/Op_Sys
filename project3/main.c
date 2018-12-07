@@ -421,38 +421,13 @@ void mkdir(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned
                         fileexten[i] = ' ';
                 }
 
-
-        //  	struct directory dir;
-	//	char filestart[9];
-	//	for(int i = 0; i < 8; i++){
-	//		filestart[i] = ' ';
-	//	}
-	//	char fileexten[4];
-	//	for(int i = 0; i < 3; i++){
-	//		fileexten[i] = ' ';
-	//	}
-	//	int i = 0;
-	//	int j = 0;
-	//	bool has_exten = false;
-	//	while(filename[i]!='\0'){
-	//		if(filename[i]=='.'){
-	//			memcpy(filestart,filename,i);
-	//			j = i;
-	//			has_exten = true;
-	//		}
-	//		i++; 
-	//		if(filename[i]=='\0'){
-	//			memcpy(filestart,filename,i);
-	//		}
-	//	}
-	//	if(has_exten){
-	//		memcpy(fileexten,&filename[j+1],i-j);
-	//	}
                 //finds empty fat to set the cluster for the new file
 		uint32_t empty_fat = find_empty_fat(start_dir_fat,info,fptr);
-		dir.first_cluster_high = empty_fat >> 16;
-		dir.first_cluster_low = (empty_fat << 16) >> 16;
+                uint32_t empty_cluster = (empty_fat-start_dir_fat)/4+2;
+		dir.first_cluster_high = empty_cluster >> 16;
+		dir.first_cluster_low = (empty_cluster << 16) >> 16;
 		dir.size = 0;
+                printf("empty_fat: %x cluster_high %x cluster_low %x\n",empty_fat,dir.first_cluster_high,dir.first_cluster_low);
 		for(int i = 0; i < 8; i++){
 			dir.name[i] = filestart[i];
 		}
@@ -464,28 +439,44 @@ void mkdir(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned
 		char test[33];
                 //setting up the long name to be added in front of the actual directory entry
                 //this will NOT accept long names correctly it is only implemented to get ls in 
-                //an actual file manager to work
-		struct long_name longname;
-		longname.LDIR_Ord = 0x40;
-		for(int i = 0; i < 10; i+=2){
-			longname.LDIR_Name1[i] = filename[i/2];
-			longname.LDIR_Name1[i+1] = 0x00;
-		}
-		longname.LDIR_Attr = ATTR_LONG_NAME;
-		longname.LDIR_Chksum = ChkSum(filename);
-		for(int i = 0; i < 12; i+=2){
-			longname.LDIR_Name2[i] = filename[5+i/2];
-			longname.LDIR_Name2[i+1] = 0x00;
-		}
-		longname.LDIR_FstClusLO = 0;
-		longname.LDIR_Name3 = 0xFFFFFFFF;
+                ////an actual file manager to work
+		//struct long_name longname;
+		//longname.LDIR_Ord = 0x40;
+		//for(int i = 0; i < 10; i+=2){
+		//	longname.LDIR_Name1[i] = filename[i/2];
+		//	longname.LDIR_Name1[i+1] = 0x00;
+		//}
+		//longname.LDIR_Attr = ATTR_LONG_NAME;
+		//longname.LDIR_Chksum = ChkSum(filename);
+		//for(int i = 0; i < 12; i+=2){
+		//	longname.LDIR_Name2[i] = filename[5+i/2];
+		//	longname.LDIR_Name2[i+1] = 0x00;
+		//}
+		//longname.LDIR_FstClusLO = 0;
+		//longname.LDIR_Name3 = 0xFFFFFFFF;
                 //write the long name and then file to the fat32 system
-		fwrite(&longname,sizeof(struct long_name),1,fptr);
+		//fwrite(&longname,sizeof(struct long_name),1,fptr);
 		fwrite(&dir,sizeof(struct directory),1,fptr);
                 //puts eof value in the fat table
 		fseek(fptr,empty_fat,SEEK_SET);
-		uint32_t eof = 0xFFFFFF0F;
+		uint32_t eof = 0x0FFFFFFF;
 		fwrite(&eof,sizeof(uint32_t),1,fptr);
+
+                //write the . and .. files to the new directory
+		fseek(fptr,FirstSectorofCluster((empty_fat-start_dir_fat)/4+2),SEEK_SET);
+                printf("first sector %x\n",FirstSectorofCluster((empty_fat-start_dir_fat)/4+2));
+                //for . file
+                dir.name[0] = '.';
+                for(int i = 1; i < 8; i++){
+                    dir.name[i] = ' ';
+                }
+		fwrite(&dir,sizeof(struct directory),1,fptr);
+                uint32_t current_cluster = (current_dir_fat-start_dir_fat)/4+2;
+		dir.first_cluster_high = current_cluster >> 16;
+		dir.first_cluster_low = (current_cluster << 16) >> 16;
+                dir.name[1] = '.';
+		fwrite(&dir,sizeof(struct directory),1,fptr);
+                 
 	}
 }
 
@@ -550,7 +541,8 @@ unsigned int cd(unsigned int current_dir, struct boot_sector_struct* info, FILE*
 				}
 				tmp1[length] = '\0';
 			}if(strcmp(tmp1,directory)==0){
-				unsigned int super_tmp = dir.first_cluster_high >> 8;
+				unsigned int super_tmp = dir.first_cluster_high >> 16;
+                                printf("low %x high %x\n",dir.first_cluster_low,dir.first_cluster_high);
 				super_tmp += dir.first_cluster_low;
 				if(super_tmp == 0){super_tmp=2;}
 				super_tmp = ThisFATSecNum(super_tmp,info) + ThisFATEntOffset(super_tmp,info);
@@ -716,6 +708,7 @@ int main(int argc,char *argv[]){
                 else if(strcmp(commands[0],"cd")==0){
                         if(commands[1]!=NULL){
                              current_dir_fat = cd(current_dir_fat, &info, fptr, commands[1]);
+                             printf("current_dir_fat %x\n",current_dir_fat);
                         }else{
                              printf("Error: cd needs a directory name\n");
                         }
