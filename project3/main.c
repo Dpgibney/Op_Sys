@@ -514,15 +514,13 @@ void openfile(char* filename, int mode, struct openfiles** of, struct boot_secto
 	unsigned int super_tmp;
 	unsigned int super_tmp2;
 	int open = 0;
-	int i = 0; 
+	int i = 0;
+	struct directory dirtmp;
 		do{
-        	fseek(fptr,dir_on,SEEK_SET);
+		fread(&dirtmp,32,1,fptr);
              	fread(&(tmp),4,1,fptr);
                 printf("Current Directory: %x\n",dir_on);
 		//TODO make sure file isnt read only if mode is 1 or 2
-		/*if(tmp.attribute &0X01 = 0X01 && mode == 2){
-			print("READ ONLY");
-		}*/
                 //currently assuming all in the same fat
                 if(checkForFile(fptr,((dir_on-start_dir_fat)/4+2),info, filename, &super_tmp)==1){
 			//for loop to check if its in of open =1
@@ -531,6 +529,15 @@ void openfile(char* filename, int mode, struct openfiles** of, struct boot_secto
 					printf("File is already open\n");
 					return;
 				}
+
+			}
+			super_tmp2 = dirtmp.first_cluster_high >> 8;
+			super_tmp2 += dirtmp.first_cluster_low;
+			if(super_tmp2 & 0x01 == 0x01 && mode == 2){
+			}
+			else{
+				printf("Error: file is read-only\n");
+				break;
 			}
 			if(open == 0){
 				//create new entry
@@ -547,7 +554,7 @@ void openfile(char* filename, int mode, struct openfiles** of, struct boot_secto
 			}
 		}
 		else{
-			printf("File does not exist");
+			printf("File does not exist\n");
 		}
                 if(tmp < 0x0FFFFFF8){
                		dir_on = start_dir_fat + (tmp*4-8);
@@ -793,7 +800,7 @@ int main(int argc,char *argv[]){
                         }
                 }
                 else if(strcmp(commands[0],"open")==0){
-                        printf("open!!!\n");
+                        //printf("open!!!\n");
 			if(commands[1]==NULL){
 				printf("Must enter a filename\n");
 			}
@@ -802,7 +809,7 @@ int main(int argc,char *argv[]){
 					printf("Must enter a mode\n");
 				}
 				else if(commands[3]==NULL){
-					printf("OPEN func\n");
+					//printf("OPEN func\n");
 					if(strcmp(commands[2],"w")==0){
 						mode = 1;
 					}
@@ -818,18 +825,18 @@ int main(int argc,char *argv[]){
 					else{
 						mode = 0;
 					}
-					printf("Mode: %d\n", mode);
+					//printf("Mode: %d\n", mode);
 					openfile(commands[1], mode, &openfs, &info, fptr, &filecount);
-					printf("FILE COUNT: %d", filecount);
+					/*printf("FILE COUNT: %d", filecount);
 					int i = 0;
 					for(i=0; i < filecount; i++){
 						printf("mode %d, cluster %d\n", openfs[i].mode, openfs[i].first_cluster_num);
-					}
+					}*/
 				}
 			}
                 }
                 else if(strcmp(commands[0],"close")==0){
-                        printf("close!!!\n");
+                        //printf("close!!!\n");
 			if(commands[1]==NULL){
 				printf("Must enter a filename\n");
 			}
