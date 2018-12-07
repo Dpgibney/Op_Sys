@@ -95,6 +95,20 @@ unsigned int FirstSectorofCluster(unsigned int N){
         return (((N-2)*BPB_SecPerClus)*bytes_per_logic+FirstDataSector*bytes_per_logic);
 }
 
+unsigned int find_empty_fat(unsigned int start_dir, struct boot_sector_struct* info, FILE* fptr){
+	uint32_t dir_on = start_dir_fat;
+	unsigned int tmp;
+	do{
+		fseek(fptr,dir_on,SEEK_SET);
+		fread(&(tmp),4,1,fptr);
+		if(tmp==0){
+			return dir_on;
+		}
+		dir_on += 4;
+	}while(true);
+}
+
+
 //TODO only checks against files not directories
 unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr, char* filename){
         uint32_t dir_on = current_dir_fat;
@@ -144,6 +158,11 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
             dir_on = start_dir_fat + (tmp*4-8);
         }
         }while(tmp < END_FAT);
+        //if no empty cluster found make one
+        uint32_t new_fat = find_empty_fat(dir_on, info, fptr);
+        printf("new fat %x\n",new_fat);
+        
+             
 }
 
 //ChkSum function from the fat write up provided
@@ -297,19 +316,6 @@ int checkForFile(FILE *fptr, int N, struct boot_sector_struct* info, char* filen
 		}	
         }
 	return 0;
-}
-
-unsigned int find_empty_fat(unsigned int start_dir, struct boot_sector_struct* info, FILE* fptr){
-	uint32_t dir_on = start_dir_fat;
-	unsigned int tmp;
-	do{
-		fseek(fptr,dir_on,SEEK_SET);
-		fread(&(tmp),4,1,fptr);
-		if(tmp==0){
-			return dir_on;
-		}
-		dir_on += 4;
-	}while(true);
 }
 
 //TODO create only will find a free sector in the current block need to fix that
