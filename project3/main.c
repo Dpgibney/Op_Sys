@@ -161,6 +161,15 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
         //if no empty cluster found make one
         uint32_t new_fat = find_empty_fat(dir_on, info, fptr);
         printf("new fat %x\n",new_fat);
+        uint32_t cluster_num = ((new_fat-start_dir_fat)/4+2);
+        uint32_t first_cluster = FirstSectorofCluster(cluster_num);;
+        fseek(fptr,dir_on,SEEK_SET);
+        fwrite(&cluster_num,4,1,fptr);
+        fseek(fptr,new_fat,SEEK_SET);
+        printf("new fat: %x\n",new_fat);
+        uint32_t end_fat = 0xFFFFFFFF;
+        fwrite(&end_fat,4,1,fptr);
+        return first_cluster;
         
              
 }
@@ -744,6 +753,7 @@ int main(int argc,char *argv[]){
                             if(tmp < END_FAT){
                                 dir_on = start_dir_fat + (tmp*4-8);
                             }
+                        printf("dir on %x\n",dir_on);
                         }while(tmp < END_FAT);
                 }
                 else if(strcmp(commands[0],"cd")==0){
