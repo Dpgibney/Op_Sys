@@ -75,7 +75,6 @@ int bytes_per_logic;
 
 //struct for storing open files
 struct openfiles{
-	int val;
 	int mode;
 	unsigned int first_cluster_num;
 };
@@ -385,7 +384,7 @@ void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigne
 	}
 }
 
-void openfile(char* filename, int mode, struct openfiles*  of, struct boot_sector_struct* info, FILE* fptr, int *filecount){
+void openfile(char* filename, int mode, struct openfiles** of, struct boot_sector_struct* info, FILE* fptr, int *filecount){
 	if(mode == 0){
 		printf("Invalid mode\n");
 	}
@@ -393,17 +392,38 @@ void openfile(char* filename, int mode, struct openfiles*  of, struct boot_secto
 	uint32_t dir_on = current_dir_fat;
 	uint32_t tmp;
 	unsigned int super_tmp;
+	unsigned int super_tmp2;
 	int open = 0;
+	int i = 0; 
 		do{
         	fseek(fptr,dir_on,SEEK_SET);
              	fread(&(tmp),4,1,fptr);
                 printf("Current Directory: %x\n",dir_on);
+		//TODO make sure file isnt read only if mode is 1 or 2
+		/*if(tmp.attribute &0X01 = 0X01 && mode == 2){
+			print("READ ONLY");
+		}*/
                 //currently assuming all in the same fat
                 if(checkForFile(fptr,((dir_on-start_dir_fat)/4+2),info, filename, &super_tmp)==1){
-			printf("FILE EXISTS");
 			//for loop to check if its in of open =1
+			for(i = 0; i < *filecount; i++){
+				if(super_tmp == (*of)[i].first_cluster_num){
+					printf("File is already open\n");
+					return;
+				}
+			}
 			if(open == 0){
 				//create new entry
+				struct openfiles *oftmp = malloc((*filecount+1)*sizeof(struct openfiles));
+				for(i = 0; i < *filecount; i++){
+					oftmp[i].mode = (*of)[i].mode;
+					oftmp[i].first_cluster_num = (*of)[i].first_cluster_num;
+				}
+				oftmp[*filecount].mode = mode;
+				oftmp[*filecount].first_cluster_num = super_tmp;
+				free(*of);
+				*of = oftmp;
+				*filecount = *filecount + 1;
 			}
 		}
 		else{
@@ -415,7 +435,23 @@ void openfile(char* filename, int mode, struct openfiles*  of, struct boot_secto
          	}while(tmp < 0x0FFFFFF8);
 	}
 	
-}	
+}
+void closefile(unsigned int super_tmp, struct openfiles** of, int * filecount){
+	struct openfiles *oftmp = malloc((*filecount-1)*sizeof(struct openfiles));
+        int j = 0;
+	int i = 0;
+	for(i = 0; i < *filecount; i++){
+		if(super_tmp != (*of)[i].first_cluster_num){
+                	oftmp[j].mode = (*of)[i].mode;
+           		oftmp[j].first_cluster_num = (*of)[i].first_cluster_num;
+			j++;
+		}
+        }
+	free(*of);
+        *of = oftmp;
+        *filecount = *filecount - 1;
+
+}
 unsigned int cd(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr, char* directory){
 	uint32_t dir_on = current_dir_fat;
 	unsigned int tmp;
@@ -633,9 +669,6 @@ int main(int argc,char *argv[]){
                                                
                         }
                 }
-                else if(strcmp(commands[0],"mkdir")==0){
-                        printf("MKDIR!!!\n");
-                }
                 else if(strcmp(commands[0],"open")==0){
                         printf("open!!!\n");
 			if(commands[1]==NULL){
@@ -663,7 +696,12 @@ int main(int argc,char *argv[]){
 						mode = 0;
 					}
 					printf("Mode: %d\n", mode);
-					openfile(commands[1], mode, openfs, &info, fptr, &filecount);
+					openfile(commands[1], mode, &openfs, &info, fptr, &filecount);
+					printf("FILE COUNT: %d", filecount);
+					int i = 0;
+					for(i=0; i < filecount; i++){
+						printf("mode %d, cluster %d\n", openfs[i].mode, openfs[i].first_cluster_num);
+					}
 				}
 			}
                 }
@@ -671,6 +709,47 @@ int main(int argc,char *argv[]){
                         printf("close!!!\n");
 			if(commands[1]==NULL){
 				printf("Must enter a filename\n");
+			}
+			else{
+				uint32_t dir_on = current_dir_fat;
+				unsigned int super_tmp;
+				uint32_t tmp;
+				int open = 0;
+				do{
+					fseek(fptr,dir_on,SEEK_SET);
+					fread(&(tmp),4,1,fptr);
+					if(checkForFile(fptr,((dir_on-start_dir_fat)/4+2),&info, commands[1], &super_tmp)!=1){
+						printf("ERROR: file is not in current directory\n");
+					}
+					else{
+						if(filecount == 0){
+							printf("Error: No open files\n");
+						}
+						else{
+						for(i=0; i < filecount; i++){
+							if(super_tmp == openfs[i].first_cluster_num){
+								open = 1;
+							}
+						}
+						if(open == 0){
+							printf("Error: File is not open\n");
+						}
+						else{
+							closefile(super_tmp, &openfs, &filecount);
+						}
+						}
+
+					}
+				
+					if(tmp < 0X0FFFFFF8){
+						dir_on = start_dir_fat + (tmp*4-8);
+					}
+				}while(tmp < 0X0FFFFFF8);
+				/*int i = 0;
+                                for(i=0; i < filecount; i++){
+                               		printf("mode %d, cluster %d\n", openfs[i].mode, openfs[i].first_cluster_num);
+                               	}*/
+
 			}
 		}
 		else if(strcmp(commands[0],"mkdir")==0){
@@ -682,9 +761,6 @@ int main(int argc,char *argv[]){
 		          	mkdir(commands[1],&info,fptr,empty);
 		          	printf("MKDIR!!!\n");
                         }
-		}
-		else if(strcmp(commands[0],"open")==0){
-			printf("open!!!\n");
 		}
 		else if(strcmp(commands[0],"read")==0){
 			printf("READ!!!\n");
