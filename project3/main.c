@@ -15,6 +15,7 @@
 #define ATTR_ARCHIVE   0x20
 #define ATTR_LONG_NAME 0x0F
 #define END_FAT        0x0FFFFFF8
+#define TRUE_FAT_END   0x0FFFFFFF
 struct __attribute__((__packed__)) boot_sector_struct{
         uint16_t BPB_BytsPerSec;
         uint8_t BPB_SecPerClus;
@@ -667,46 +668,111 @@ void size(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr,
 	printf("didnt find the file\n");
 }
 
+uint32_t byteOffsetofCluster(struct boot_sector_struct *bs, uint32_t cluster_num){
+	return FirstSectorofCluster(cluster_num)* bs->BPB_BytsPerSec;
+}
 
 
-void readfile(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned int cluster_num, int OFFSET, int SIZE){
-//check for mode (permissions) needs to be R, RW, or WR
-//to hold file attributes
-        struct directory dir;
-	struct openfiles perm;
 
-	if((perm.mode != 2) && (perm.mode != 3)){
-		printf("Error: Invalid Permission");
-       		return;
+uint32_t getFatEntry(struct boot_sector_struct * bs, uint32_t cluster_num) {
+    
+    }
+
+
+int getFileSizeInClusters(struct boot_sector_struct * bs, uint32_t firstCluster) {
+    int size = 1;
+    firstCluster = (int) getFatEntry(bs, firstCluster);
+
+    while((firstCluster = (firstCluster & TRUE_FAT_END)) < END_FAT) {
+       
+        size++;
+        firstCluster = getFatEntry(bs, firstCluster);
+    }
+    return size;
+}
+
+void readfile(char* filename, struct openfiles **of, struct boot_sector_struct *bs, struct boot_sector_struct* info, int mode, int *filecount, FILE* fptr, int *filesize, unsigned int cluster_num, int OFFSET, int SIZE){
+	struct directory dir;
+
+	//currentCluster = first_num_cluster;	
+	uint32_t readClusterOffset = (OFFSET/bs-> BPB_BytsPerSec);
+	uint32_t posToCluster = OFFSET % bs -> BPB_BytsPerSec;
+	//uint32_t fileSize_Clusters = getFileSizeInClusters(bs, firstCluster);
+	//uint32_t remainingClusters = fileSizeInClusters - readClusterOffset;
+
+
+	printf("fread> pos: %d, readClusterOffset: %d, posRelativeToCluster: %d\n",OFFSET, readClusterOffset, posToCluster);
+        int x;
+	for(x = 0; x < readClusterOffset; x++){
+           //     currentCluster = getFatEntry(bs, currentCluster);
 	}
-	//to hold file name and extention
-        char tmp[13];
-        int length = 8;
-	char cluster_hold[1000];     
-//currently assuming all in the same fat
-		/*
-		do{
-                        //find the cluster value and store into char array
-			fseek(fptr,dir_on,SEEK_SET);
-                        fread(&(tmp),4,1,fptr);
-                        printf("Current Directory: %x\n",dir_on);
-                        //currently assuming all in the same fat
-                            //ls call(cluster num)
-			    cluster_num = dir_on-start_dir_fat/4+2
-			//    fread(&(tmp), 4, 1, fptr);	
-                            if(tmp < 0x0FFFFFF8){
-                                dir_on = start_dir_fat + (tmp*4-8);
-                            }
-                        }while(tmp < 0x0FFFFFF8);
-		*/
-//read the SIZE bytes starting at OFFSET 
-//Edge cases: OFFSET > sizeof(FILENAME), print error
+		uint32_t dataReadSoFar = SIZE;
+		uint32_t dataLeft = SIZE;
+		uint32_t fileReadOffset;
+		uint32_t startReadPos;
+
+	uint32_t dir_on = current_dir_fat;
+	uint32_t tmp;
+	unsigned int super_tmp;
+
+	//char cluster_hold* = malloc((*filecount+1)*sizeof(struct openfiles));
+
+	//try and find file
+
+	//check if the file has read permissions (R, RW, WR)
+	if ((mode != 2) && (mode != 3)){}
+	else{
+	
+	//check if the file has been opened(and the file is not a directory)
+	
+	if(checkForFile(fptr,((dir_on-start_dir_fat)/4+2),info, filename, &super_tmp)==1){
+			//for loop to check if its in of open =1
+			for(int i = 0; i < *filecount; i++){
+				if(super_tmp == (*of)[i].first_cluster_num){
+					printf("File is already open\n");
+					return;
+				}
+
+			}
+	}
+	//read the file
+	//find the cluster start pos
+////////////////////////////uint32_t startReadpos = byteOffsetOfCluster(bs, first_cluster_num) 
+
+	//cluster_first_num?
+
+	//read the SIZE bytes starting at OFFSET 
+	
+			//super_tmp = *of.first_cluster_num;
+
+				/*
+				//create new entry
+				struct openfiles *oftmp = malloc((*filecount+1)*sizeof(struct openfiles));
+				for(i = 0; i < *filecount; i++){
+					oftmp[i].mode = (*of)[i].mode;
+					oftmp[i].first_cluster_num = (*of)[i].first_cluster_num;
+				}
+				oftmp[*filecount].mode = mode;
+				oftmp[*filecount].first_cluster_num = super_tmp;
+				free(*of);
+				*of = oftmp;
+				*filecount = *filecount + 1;
+				*/
+		}
+
+//Edge cases: 
+if(OFFSET >= *filesize){
+	printf ("Error: Edge Case\n");
+}//Edge cases: OFFSET > sizeof(FILENAME), print erroruint32_t index;
+
+if(SIZE > *filesize){
+	printf ("Error: Not enough space in file\n");
+} //OFFSET > sizeof(FILENAME), print error 
 //SIZE > sizeof(FILENAME), print entire file
 //OFFSET + SIZE > sizeof(FILENAME) -prints sizeof(FILENAME) -OFFSET bytes
 
-
-//off_bytes/bytes_per_sec = cluter offset
-//offset % bytes_pwer_sec = byte offset within cluster
+//off_bytes/bytes_per_sec = cluster offset
+//offset % bytes_per_sec = byte offset within cluster
 }
 
 
@@ -894,6 +960,7 @@ int main(int argc,char *argv[]){
 		}
 		else if(strcmp(commands[0],"read")==0){
 			printf("READ!!!\n");
+			
 		}
 		else if(strcmp(commands[0],"write")==0){
 			printf("WRITE!!!\n");
