@@ -519,7 +519,7 @@ void openfile(char* filename, int mode, struct openfiles** of, struct boot_secto
 		do{
 		fread(&dirtmp,32,1,fptr);
              	fread(&(tmp),4,1,fptr);
-                printf("Current Directory: %x\n",dir_on);
+                //printf("Current Directory: %x\n",dir_on);
 		//TODO make sure file isnt read only if mode is 1 or 2
                 //currently assuming all in the same fat
                 if(checkForFile(fptr,((dir_on-start_dir_fat)/4+2),info, filename, &super_tmp)==1){
