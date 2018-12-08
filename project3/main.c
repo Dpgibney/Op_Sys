@@ -76,6 +76,7 @@ int bytes_per_logic;
 
 //struct for storing open files
 struct openfiles{
+	char* name;
 	int mode;
 	unsigned int first_cluster_num;
 };
@@ -543,12 +544,18 @@ void openfile(char* filename, int mode, struct openfiles** of, struct boot_secto
 			if(open == 0){
 				//create new entry
 				struct openfiles *oftmp = malloc((*filecount+1)*sizeof(struct openfiles));
+				char * tmp_name = (char*)malloc(sizeof(char)); 
 				for(i = 0; i < *filecount; i++){
+					oftmp[i].name = (*of)[i].name;
 					oftmp[i].mode = (*of)[i].mode;
 					oftmp[i].first_cluster_num = (*of)[i].first_cluster_num;
 				}
+				oftmp[*filecount].name = filename;
 				oftmp[*filecount].mode = mode;
 				oftmp[*filecount].first_cluster_num = super_tmp;
+				for(i = 0; i < *filecount; i++){
+					free((*of)[i].name);
+				}
 				free(*of);
 				*of = oftmp;
 				*filecount = *filecount + 1;
@@ -998,8 +1005,10 @@ int main(int argc,char *argv[]){
 	//free memory here
 	free(input);
 	free(input_raw);
+	free(openfs);
 
 	//close file
 	fclose(fptr);
+
 
 }
