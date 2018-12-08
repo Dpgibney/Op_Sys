@@ -1,0 +1,29 @@
+Member 1: Danny Gibney
+Member 2: David Song
+Member 3: Alexandra Sayers
+
+project3.tar contents:
+README
+Makefile
+project3.c
+
+Workload:
+Danny = exit, info, ls, cd, creat, mkdir
+David = read, size
+Alexandra = README, open, close
+
+Completed using: Ubuntu
+
+To build:
+$> make
+
+To run:
+$> ./main fat32.img
+
+Known bugs:
+  -Memory leak of 1byte
+To do:
+  -write
+	
+Additional comments:
+  
