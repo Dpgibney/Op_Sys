@@ -217,6 +217,38 @@ void get_info(struct boot_sector_struct* info, FILE *fptr){
                 start_dir_fat = ThisFATSecNum(2,info) + ThisFATEntOffset(2,info);
                 current_dir_fat = ThisFATSecNum(2,info) + ThisFATEntOffset(2,info);
 
+                //printf("BPB_BytsPerSec:\t\t %u\n",info->BPB_BytsPerSec);
+                //printf("BPB_SecPerClus:\t\t %u\n",info->BPB_SecPerClus);
+                //printf("BPB_RsvdSecCnt:\t\t %u\n",info->BPB_RsvdSecCnt);
+                //printf("BPB_NumFATS:\t\t %u\n",info->BPB_NumFATs);
+                //printf("BPB_RootEntCnt:\t\t %u\n",info->BPB_RootEntCnt);
+                //printf("BPB_TotSec16:\t\t %u\n",info->BPB_TotSec16);
+                //printf("BPB_Media:\t\t %x\n",info->BPB_Media);
+                //printf("BPB_FATSz16:\t\t %u\n",info->BPB_FATSz16);
+                //printf("BPB_SecPerTrk:\t\t %u\n",info->BPB_SecPerTrk);
+                //printf("BPB_NumHeads:\t\t %u\n",info->BPB_NumHeads);
+                //printf("BPB_HiddSec:\t\t %u\n",info->BPB_HiddSec);
+                //printf("BPB_TotSec32:\t\t %u\n",info->BPB_TotSec32);
+                //printf("BPB_FATSz32:\t\t %u\n",info->BPB_FATSz32);
+                //printf("BPB_ExtFlags:\t\t %u\n",info->BPB_ExtFlags);
+                //printf("BPB_FSVer:\t\t %u\n",info->BPB_FSVer);
+                //printf("BPB_RootClus:\t\t %u\n",info->BPB_RootClus);
+                //printf("BPB_FSInfo:\t\t %u\n",info->BPB_FSInfo);
+                //printf("BPB_Reserved:\t\t %s\n",info->BPB_Reserved);
+                //printf("BS_DrvNum:\t\t %u\n",info->BS_DrvNum);
+                //printf("BS_Reserved1:\t\t %u\n",info->BS_Reserved1);
+                //printf("BS_BootSig:\t\t %u\n",info->BS_BootSig);
+                //printf("BS_VolID:\t\t %u\n",info->BS_VolID);
+                //printf("BS_VolLab:\t\t %s\n",info->BS_VolLab);
+                //printf("BS_FilSysType:\t\t %s\n",info->BS_FilSysType);
+                //printf("\n\n");
+
+        }else{
+                printf("failed to seek to parse boot sector\n");
+        }
+}
+
+void print_info(struct boot_sector_struct* info, FILE *fptr){
                 printf("BPB_BytsPerSec:\t\t %u\n",info->BPB_BytsPerSec);
                 printf("BPB_SecPerClus:\t\t %u\n",info->BPB_SecPerClus);
                 printf("BPB_RsvdSecCnt:\t\t %u\n",info->BPB_RsvdSecCnt);
@@ -241,11 +273,6 @@ void get_info(struct boot_sector_struct* info, FILE *fptr){
                 printf("BS_VolID:\t\t %u\n",info->BS_VolID);
                 printf("BS_VolLab:\t\t %s\n",info->BS_VolLab);
                 printf("BS_FilSysType:\t\t %s\n",info->BS_FilSysType);
-                printf("\n\n");
-
-        }else{
-                printf("failed to seek to parse boot sector\n");
-        }
 }
 
 void ls(FILE *fptr, int N, struct boot_sector_struct* info){
@@ -869,6 +896,9 @@ int main(int argc,char *argv[]){
                         }else{
                              printf("Error: cd needs a directory name\n");
                         }
+                }
+                else if(strcmp(commands[0],"info")==0){
+                        print_info(&info,fptr);        
                 }
                 else if(strcmp(commands[0],"size")==0){
                         if(commands[1] != NULL){
