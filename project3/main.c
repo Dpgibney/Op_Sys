@@ -551,9 +551,9 @@ void openfile(char* filename, int mode, struct openfiles** of, struct boot_secto
 				oftmp[*filecount].name = filename;
 				oftmp[*filecount].mode = mode;
 				oftmp[*filecount].first_cluster_num = super_tmp;
-				for(i = 0; i < *filecount; i++){
-					free((*of)[i].name);
-				}
+				//for(i = 0; i < *filecount; i++){
+				//	free((*of)[i].name);
+				//}
 				free(*of);
 				*of = oftmp;
 				*filecount = *filecount + 1;
@@ -955,8 +955,9 @@ int main(int argc,char *argv[]){
 						}
 						else{
 							closefile(super_tmp, &openfs, &filecount);
+							break;
 						}
-						}
+					}
 
 					}
 				
