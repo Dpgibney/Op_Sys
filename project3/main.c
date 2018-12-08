@@ -706,6 +706,7 @@ uint32_t byteOffsetOfCluster(struct boot_sector_struct *bs, uint32_t cluster_num
 
 int getFatEntry(struct boot_sector_struct *bs, uint32_t first_cluster_num){
 	return start_dir_fat + first_cluster_num * 4;
+}
 
 int readfile(char* filename, struct openfiles **of, struct boot_sector_struct *bs, int mode, int *filecount, FILE* fptr, unsigned int first_cluster_num, int OFFSET, int SIZE){
 	struct directory dir;
