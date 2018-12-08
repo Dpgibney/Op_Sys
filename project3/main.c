@@ -15,6 +15,7 @@
 #define ATTR_ARCHIVE   0x20
 #define ATTR_LONG_NAME 0x0F
 #define END_FAT        0x0FFFFFF8
+#define TRUE_FAT_END   0x0FFFFFFF
 struct __attribute__((__packed__)) boot_sector_struct{
         uint16_t BPB_BytsPerSec;
         uint8_t BPB_SecPerClus;
@@ -75,6 +76,7 @@ int bytes_per_logic;
 
 //struct for storing open files
 struct openfiles{
+	char* name;
 	int mode;
 	unsigned int first_cluster_num;
 };
@@ -510,16 +512,15 @@ void openfile(char* filename, int mode, struct openfiles** of, struct boot_secto
 	uint32_t dir_on = current_dir_fat;
 	uint32_t tmp;
 	unsigned int super_tmp;
+	unsigned int super_tmp2;
 	int open = 0;
-	int i = 0; 
+	int i = 0;
+	struct directory dirtmp;
 		do{
-        	fseek(fptr,dir_on,SEEK_SET);
+		fread(&dirtmp,32,1,fptr);
              	fread(&(tmp),4,1,fptr);
                 printf("Current Directory: %x\n",dir_on);
 		//TODO make sure file isnt read only if mode is 1 or 2
-		/*if(tmp.attribute &0X01 = 0X01 && mode == 2){
-			print("READ ONLY");
-		}*/
                 //currently assuming all in the same fat
                 if(checkForFile(fptr,((dir_on-start_dir_fat)/4+2),info, filename, &super_tmp)==1){
 			//for loop to check if its in of open =1
@@ -528,23 +529,38 @@ void openfile(char* filename, int mode, struct openfiles** of, struct boot_secto
 					printf("File is already open\n");
 					return;
 				}
+
+			}
+			super_tmp2 = dirtmp.first_cluster_high >> 8;
+			super_tmp2 += dirtmp.first_cluster_low;
+			if(super_tmp2 & 0x01 == 0x01 && mode == 2){
+			}
+			else{
+				printf("Error: file is read-only\n");
+				break;
 			}
 			if(open == 0){
 				//create new entry
 				struct openfiles *oftmp = malloc((*filecount+1)*sizeof(struct openfiles));
+				char * tmp_name = (char*)malloc(sizeof(char)); 
 				for(i = 0; i < *filecount; i++){
+					oftmp[i].name = (*of)[i].name;
 					oftmp[i].mode = (*of)[i].mode;
 					oftmp[i].first_cluster_num = (*of)[i].first_cluster_num;
 				}
+				oftmp[*filecount].name = filename;
 				oftmp[*filecount].mode = mode;
 				oftmp[*filecount].first_cluster_num = super_tmp;
+				for(i = 0; i < *filecount; i++){
+					free((*of)[i].name);
+				}
 				free(*of);
 				*of = oftmp;
 				*filecount = *filecount + 1;
 			}
 		}
 		else{
-			printf("File does not exist");
+			printf("File does not exist\n");
 		}
                 if(tmp < 0x0FFFFFF8){
                		dir_on = start_dir_fat + (tmp*4-8);
@@ -657,16 +673,41 @@ void size(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr,
 	printf("didnt find the file\n");
 }
 
+uint32_t byteOffsetofCluster(struct boot_sector_struct *bs, uint32_t cluster_num){
+	return FirstSectorofCluster(cluster_num)* bs->BPB_BytsPerSec;
+}
+
+uint32_t getFatEntry(struct boot_sector_struct * bs, uint32_t cluster_num) {
+    
+    }
 
 
-void readfile(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned int cluster_num, int OFFSET, int SIZE){
-//check for mode (permissions) needs to be R, RW, or WR
-//to hold file attributes
-	struct openfiles perm;
+int getFileSizeInClusters(struct boot_sector_struct * bs, uint32_t firstCluster) {
+    int size = 1;
+    firstCluster = (int) getFatEntry(bs, firstCluster);
 
-	if((perm.mode != 2) && (perm.mode != 3)){
-		printf("Error: Invalid Permission");
-       		return;
+    while((firstCluster = (firstCluster & TRUE_FAT_END)) < END_FAT) {
+       
+        size++;
+        firstCluster = getFatEntry(bs, firstCluster);
+    }
+    return size;
+}
+
+void readfile(char* filename, struct openfiles **of, struct boot_sector_struct *bs, struct boot_sector_struct* info, int mode, int *filecount, FILE* fptr, int *filesize, unsigned int cluster_num, int OFFSET, int SIZE){
+	struct directory dir;
+
+	//currentCluster = first_num_cluster;	
+	uint32_t readClusterOffset = (OFFSET/bs-> BPB_BytsPerSec);
+	uint32_t posToCluster = OFFSET % bs -> BPB_BytsPerSec;
+	//uint32_t fileSize_Clusters = getFileSizeInClusters(bs, firstCluster);
+	//uint32_t remainingClusters = fileSizeInClusters - readClusterOffset;
+
+
+	printf("fread> pos: %d, readClusterOffset: %d, posRelativeToCluster: %d\n",OFFSET, readClusterOffset, posToCluster);
+        int x;
+	for(x = 0; x < readClusterOffset; x++){
+           //     currentCluster = getFatEntry(bs, currentCluster);
 	}
 	//to hold file name and extention
 	char cluster_hold[1000];     
@@ -688,12 +729,73 @@ void readfile(char* filename, struct boot_sector_struct* info, FILE* fptr, unsig
 		*/
 //read the SIZE bytes starting at OFFSET 
 //Edge cases: OFFSET > sizeof(FILENAME), print error
+		uint32_t dataReadSoFar = SIZE;
+		uint32_t dataLeft = SIZE;
+		uint32_t fileReadOffset;
+		uint32_t startReadPos;
+
+	uint32_t dir_on = current_dir_fat;
+	uint32_t tmp;
+	unsigned int super_tmp;
+
+	//char cluster_hold* = malloc((*filecount+1)*sizeof(struct openfiles));
+
+	//try and find file
+
+	//check if the file has read permissions (R, RW, WR)
+	if ((mode != 2) && (mode != 3)){}
+	else{
+	
+	//check if the file has been opened(and the file is not a directory)
+	
+	if(checkForFile(fptr,((dir_on-start_dir_fat)/4+2),info, filename, &super_tmp)==1){
+			//for loop to check if its in of open =1
+			for(int i = 0; i < *filecount; i++){
+				if(super_tmp == (*of)[i].first_cluster_num){
+					printf("File is already open\n");
+					return;
+				}
+
+			}
+	}
+	//read the file
+	//find the cluster start pos
+////////////////////////////uint32_t startReadpos = byteOffsetOfCluster(bs, first_cluster_num) 
+
+	//cluster_first_num?
+
+	//read the SIZE bytes starting at OFFSET 
+	
+			//super_tmp = *of.first_cluster_num;
+
+				/*
+				//create new entry
+				struct openfiles *oftmp = malloc((*filecount+1)*sizeof(struct openfiles));
+				for(i = 0; i < *filecount; i++){
+					oftmp[i].mode = (*of)[i].mode;
+					oftmp[i].first_cluster_num = (*of)[i].first_cluster_num;
+				}
+				oftmp[*filecount].mode = mode;
+				oftmp[*filecount].first_cluster_num = super_tmp;
+				free(*of);
+				*of = oftmp;
+				*filecount = *filecount + 1;
+				*/
+		}
+
+//Edge cases: 
+if(OFFSET >= *filesize){
+	printf ("Error: Edge Case\n");
+}//Edge cases: OFFSET > sizeof(FILENAME), print erroruint32_t index;
+
+if(SIZE > *filesize){
+	printf ("Error: Not enough space in file\n");
+} //OFFSET > sizeof(FILENAME), print error 
 //SIZE > sizeof(FILENAME), print entire file
 //OFFSET + SIZE > sizeof(FILENAME) -prints sizeof(FILENAME) -OFFSET bytes
 
-
-//off_bytes/bytes_per_sec = cluter offset
-//offset % bytes_pwer_sec = byte offset within cluster
+//off_bytes/bytes_per_sec = cluster offset
+//offset % bytes_per_sec = byte offset within cluster
 }
 
 
@@ -787,7 +889,7 @@ int main(int argc,char *argv[]){
                         }
                 }
                 else if(strcmp(commands[0],"open")==0){
-                        printf("open!!!\n");
+                        //printf("open!!!\n");
 			if(commands[1]==NULL){
 				printf("Must enter a filename\n");
 			}
@@ -796,7 +898,7 @@ int main(int argc,char *argv[]){
 					printf("Must enter a mode\n");
 				}
 				else if(commands[3]==NULL){
-					printf("OPEN func\n");
+					//printf("OPEN func\n");
 					if(strcmp(commands[2],"w")==0){
 						mode = 1;
 					}
@@ -812,18 +914,18 @@ int main(int argc,char *argv[]){
 					else{
 						mode = 0;
 					}
-					printf("Mode: %d\n", mode);
+					//printf("Mode: %d\n", mode);
 					openfile(commands[1], mode, &openfs, &info, fptr, &filecount);
-					printf("FILE COUNT: %d", filecount);
+					/*printf("FILE COUNT: %d", filecount);
 					int i = 0;
 					for(i=0; i < filecount; i++){
 						printf("mode %d, cluster %d\n", openfs[i].mode, openfs[i].first_cluster_num);
-					}
+					}*/
 				}
 			}
                 }
                 else if(strcmp(commands[0],"close")==0){
-                        printf("close!!!\n");
+                        //printf("close!!!\n");
 			if(commands[1]==NULL){
 				printf("Must enter a filename\n");
 			}
@@ -881,6 +983,7 @@ int main(int argc,char *argv[]){
 		}
 		else if(strcmp(commands[0],"read")==0){
 			printf("READ!!!\n");
+			
 		}
 		else if(strcmp(commands[0],"write")==0){
 			printf("WRITE!!!\n");
@@ -900,8 +1003,10 @@ int main(int argc,char *argv[]){
 	//free memory here
 	free(input);
 	free(input_raw);
+	free(openfs);
 
 	//close file
 	fclose(fptr);
+
 
 }
