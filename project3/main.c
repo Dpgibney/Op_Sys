@@ -170,13 +170,13 @@ unsigned int find_empty_cluster(unsigned int current_dir, struct boot_sector_str
         }while(tmp < END_FAT);
         //if no empty cluster found make one
         uint32_t new_fat = find_empty_fat(dir_on, info, fptr);
-        printf("new fat %x\n",new_fat);
+        //printf("new fat %x\n",new_fat);
         uint32_t cluster_num = ((new_fat-start_dir_fat)/4+2);
         uint32_t first_cluster = FirstSectorofCluster(cluster_num);;
         fseek(fptr,dir_on,SEEK_SET);
         fwrite(&cluster_num,4,1,fptr);
         fseek(fptr,new_fat,SEEK_SET);
-        printf("new fat: %x\n",new_fat);
+        //printf("new fat: %x\n",new_fat);
         uint32_t end_fat = 0xFFFFFFFF;
         fwrite(&end_fat,4,1,fptr);
         return first_cluster;
@@ -266,7 +266,7 @@ void ls(FILE *fptr, int N, struct boot_sector_struct* info){
 				break;
 			}
 		}
-		if(dir.attribute != ATTR_HIDDEN && dir.attribute != ATTR_DIRECTORY && dir.attribute != 0x80 && dir.attribute != ATTR_LONG_NAME){
+		if(dir.attribute != 0x00 && dir.attribute != ATTR_HIDDEN && dir.attribute != ATTR_DIRECTORY && dir.attribute != 0x80 && dir.attribute != ATTR_LONG_NAME){
 			memcpy(tmp,dir.name,length);
 			if(dir.extention[0]==' '){
 				tmp[length] = '\0';
@@ -302,7 +302,7 @@ int checkForFile(FILE *fptr, int N, struct boot_sector_struct* info, char* filen
         fseek(fptr,FirstSectorofCluster(N),SEEK_SET);
 
         //so that it will check the sector fully
-        printf("what is n%d\n",N);
+        //printf("what is n%d\n",N);
         for(int i = 0; i < (info->BPB_BytsPerSec/32); i++){
                 fread(&dir,32,1,fptr);
                 for(int i = 0; i < 8; i++){
@@ -324,9 +324,9 @@ int checkForFile(FILE *fptr, int N, struct boot_sector_struct* info, char* filen
                     for(int i = 0; i < 12; i++){
                         tmp[i] = tolower(tmp[i]);
                     }
-                    printf("%s\n",tmp);
-                    printf("%x\n",dir.first_cluster_high);
-                    printf("%x\n",dir.first_cluster_low);
+                    //printf("%s\n",tmp);
+                    //printf("%x\n",dir.first_cluster_high);
+                    //printf("%x\n",dir.first_cluster_low);
                 }
 		if(strcmp(tmp,filename)==0){
 			*super_tmp = dir.first_cluster_high >> 8;
@@ -342,7 +342,7 @@ int checkForFile(FILE *fptr, int N, struct boot_sector_struct* info, char* filen
 void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned int empty_cluster_num){
 	if(empty_cluster_num == -1){printf("error file already exists\n");}
 	else{
-		printf("CREATE DOES NOT COMPLETELY WORK YET");
+		//printf("CREATE DOES NOT COMPLETELY WORK YET");
                 //First this sets up the file to be added to the directory
                 struct directory dir;
                 char filestart[9];
@@ -397,7 +397,6 @@ void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigne
 		}
 		dir.attribute = ATTR_ARCHIVE;
 		fseek(fptr,empty_cluster_num,SEEK_SET);
-		char test[33];
                 //setting up the long name to be added in front of the actual directory entry
                 //this will NOT accept long names correctly it is only implemented to get ls in 
                 //an actual file manager to work
@@ -429,7 +428,7 @@ void create(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigne
 void mkdir(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned int empty_cluster_num){
 	if(empty_cluster_num == -1){printf("error file already exists\n");}
 	else{
-		printf("mkdir DOES NOT COMPLETELY WORK YET");
+		//printf("mkdir DOES NOT COMPLETELY WORK YET");
                 //First this sets up the directory to be added to the directory
                 struct directory dir;
                 char filestart[9];
@@ -451,7 +450,7 @@ void mkdir(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned
 		dir.first_cluster_high = empty_cluster >> 16;
 		dir.first_cluster_low = (empty_cluster << 16) >> 16;
 		dir.size = 0;
-                printf("empty_fat: %x cluster_high %x cluster_low %x\n",empty_fat,dir.first_cluster_high,dir.first_cluster_low);
+                //printf("empty_fat: %x cluster_high %x cluster_low %x\n",empty_fat,dir.first_cluster_high,dir.first_cluster_low);
 		for(int i = 0; i < 8; i++){
 			dir.name[i] = filestart[i];
 		}
@@ -460,7 +459,6 @@ void mkdir(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned
 		}
 		dir.attribute = ATTR_DIRECTORY;
 		fseek(fptr,empty_cluster_num,SEEK_SET);
-		char test[33];
                 //setting up the long name to be added in front of the actual directory entry
                 //this will NOT accept long names correctly it is only implemented to get ls in 
                 ////an actual file manager to work
@@ -488,7 +486,7 @@ void mkdir(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned
 
                 //write the . and .. files to the new directory
 		fseek(fptr,FirstSectorofCluster((empty_fat-start_dir_fat)/4+2),SEEK_SET);
-                printf("first sector %x\n",FirstSectorofCluster((empty_fat-start_dir_fat)/4+2));
+                //printf("first sector %x\n",FirstSectorofCluster((empty_fat-start_dir_fat)/4+2));
                 //for . file
                 dir.name[0] = '.';
                 for(int i = 1; i < 8; i++){
@@ -512,7 +510,6 @@ void openfile(char* filename, int mode, struct openfiles** of, struct boot_secto
 	uint32_t dir_on = current_dir_fat;
 	uint32_t tmp;
 	unsigned int super_tmp;
-	unsigned int super_tmp2;
 	int open = 0;
 	int i = 0; 
 		do{
@@ -602,7 +599,7 @@ unsigned int cd(unsigned int current_dir, struct boot_sector_struct* info, FILE*
 				tmp1[length] = '\0';
 			}if(strcmp(tmp1,directory)==0){
 				unsigned int super_tmp = dir.first_cluster_high >> 16;
-                                printf("low %x high %x\n",dir.first_cluster_low,dir.first_cluster_high);
+                                //printf("low %x high %x\n",dir.first_cluster_low,dir.first_cluster_high);
 				super_tmp += dir.first_cluster_low;
 				if(super_tmp == 0){super_tmp=2;}
 				super_tmp = ThisFATSecNum(super_tmp,info) + ThisFATEntOffset(super_tmp,info);
@@ -646,10 +643,10 @@ void size(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr,
 					tmp1[i] = tolower(tmp1[i]);
 				}
 				tmp1[length] = '\0';
-				printf("%s\n",tmp1);
+				//printf("%s\n",tmp1);
 			}if(strcmp(tmp1,directory)==0){
 				unsigned int super_tmp = dir.size;
-				printf("file size %d",super_tmp);
+				printf("file size %d\n",super_tmp);
 				return;
 			}
 		}
@@ -665,7 +662,6 @@ void size(unsigned int current_dir, struct boot_sector_struct* info, FILE* fptr,
 void readfile(char* filename, struct boot_sector_struct* info, FILE* fptr, unsigned int cluster_num, int OFFSET, int SIZE){
 //check for mode (permissions) needs to be R, RW, or WR
 //to hold file attributes
-        struct directory dir;
 	struct openfiles perm;
 
 	if((perm.mode != 2) && (perm.mode != 3)){
@@ -673,8 +669,6 @@ void readfile(char* filename, struct boot_sector_struct* info, FILE* fptr, unsig
        		return;
 	}
 	//to hold file name and extention
-        char tmp[13];
-        int length = 8;
 	char cluster_hold[1000];     
 //currently assuming all in the same fat
 		/*
@@ -747,11 +741,11 @@ int main(int argc,char *argv[]){
                 token = strtok(input_raw, " ");
                 while(token!=NULL){
                         commands[i++] = token;
-                        printf("TOKEN %s\n", token);
+                        //printf("TOKEN %s\n", token);
                         token = strtok(NULL, " ");
                 }
                 for(int i = 0; i < 5; i++){
-                  printf("ARRAY:%s\n",commands[i]);
+                  //printf("ARRAY:%s\n",commands[i]);
                   }
                 if(strcmp(commands[0],"ls")==0){
                         uint32_t tmp;
@@ -763,13 +757,13 @@ int main(int argc,char *argv[]){
                             if(tmp < END_FAT){
                                 dir_on = start_dir_fat + (tmp*4-8);
                             }
-                        printf("dir on %x\n",dir_on);
+                        //printf("dir on %x\n",dir_on);
                         }while(tmp < END_FAT);
                 }
                 else if(strcmp(commands[0],"cd")==0){
                         if(commands[1]!=NULL){
                              current_dir_fat = cd(current_dir_fat, &info, fptr, commands[1]);
-                             printf("current_dir_fat %x\n",current_dir_fat);
+                             //printf("current_dir_fat %x\n",current_dir_fat);
                         }else{
                              printf("Error: cd needs a directory name\n");
                         }
@@ -782,12 +776,12 @@ int main(int argc,char *argv[]){
 			}
 		}
                 else if(strcmp(commands[0],"creat")==0){
-                        printf("creat!!!\n");
+                        //printf("creat!!!\n");
                         if(commands[1]==NULL){
                               printf("Must enter a filename\n");
                         }else{
                               unsigned int empty = find_empty_cluster(current_dir_fat,&info,fptr, commands[1]);
-                              printf("empty: %x",empty);
+                              //printf("empty: %x",empty);
                               create(commands[1],&info,fptr,empty);
                                                
                         }
@@ -880,9 +874,9 @@ int main(int argc,char *argv[]){
                                 printf("Must enter a filename\n");
                         }else{
 			unsigned int empty = find_empty_cluster(current_dir_fat,&info,fptr, commands[1]);
-		          	printf("empty: %x",empty);
+		          	//printf("empty: %x",empty);
 		          	mkdir(commands[1],&info,fptr,empty);
-		          	printf("MKDIR!!!\n");
+		          	//printf("MKDIR!!!\n");
                         }
 		}
 		else if(strcmp(commands[0],"read")==0){
